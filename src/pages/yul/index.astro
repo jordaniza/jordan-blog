@@ -1,14 +1,14 @@
 ---
 import { getCollection } from "astro:content";
-import FormattedDate from "../components/FormattedDate.astro";
-import BlogPost from "../layouts/BlogPost.astro";
+import FormattedDate from "../../components/FormattedDate.astro";
+import BlogPost from "../../layouts/BlogPost.astro";
 const posts = (await getCollection("yul")).sort((a, b) => a.data.pubDate.valueOf() - b.data.pubDate.valueOf());
 ---
 
 <BlogPost title="Posts" , description="desc">
-  Blog Posts
-  <section>
-    <ul>
+  <section class="mt-5">
+    <h2>Posts</h2>
+    <ul class="list-none text-left">
       {
         posts.map((post) => (
           <li>
