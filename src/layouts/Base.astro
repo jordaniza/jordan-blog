@@ -1,0 +1,22 @@
+---
+import type { CollectionEntry } from "astro:content";
+import BaseHead from "../components/BaseHead.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+
+type Props = CollectionEntry<"yul">["data"];
+
+const { title, description } = Astro.props;
+---
+
+<!DOCTYPE html>
+<html class="flex flex-col items-center" lang="en">
+  <head>
+    <BaseHead title={title} description={description} />
+  </head>
+  <body class="flex items-center flex-col w-full max-w-[90ch] px-3">
+    <Header title={title} />
+    <slot />
+    <Footer />
+  </body>
+</html>

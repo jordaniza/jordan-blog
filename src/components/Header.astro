@@ -1,17 +1,24 @@
 ---
 import HeaderLink from "./HeaderLink.astro";
-import { SITE_TITLE } from "../consts";
 ---
 
-<header class="w-full flex flex-col items-center justify-center">
-  <h2 class="my-3">
-    {SITE_TITLE}
-  </h2>
+<header class="w-full flex flex-col items-center justify-center my-5">
   <nav class="w-full flex justify-between gap-2">
-    <HeaderLink href="/">Home</HeaderLink>
-    <HeaderLink href="/yul">Hack Solidity</HeaderLink>
-    <HeaderLink href="https://twitter.com/jordanimran2" target="_blank">Twitter</HeaderLink>
-    <HeaderLink href="https://github.com/jordaniza" target="_blank">GitHub</HeaderLink>
+    <div class="flex gap-2">
+      <h2 class="border-r-[1px] border-black pr-2 mx-1">
+        <a href="/">Jordaniza</a>
+      </h2>
+      <HeaderLink class="underline" href="/">Home</HeaderLink>
+      <HeaderLink class="underline" href="/yul">Hack Solidity</HeaderLink>
+    </div>
+    <div class="flex gap-2">
+      <HeaderLink href="https://twitter.com/jordanimran2" target="_blank">
+        <img src="/twitter.png" alt="Twitter" class="w-5 h-5" />
+      </HeaderLink>
+      <HeaderLink href="https://github.com/jordaniza" target="_blank">
+        <img src="/github.png" alt="Github" class="w-5 h-5" />
+      </HeaderLink>
+    </div>
   </nav>
   <div class="bg-black h-[1px] w-full"></div>
 </header>
