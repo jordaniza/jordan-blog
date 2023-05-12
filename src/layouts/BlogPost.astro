@@ -3,12 +3,12 @@ import type { CollectionEntry } from "astro:content";
 import BaseLayout from "./Base.astro";
 import BlogPostHeader from "../components/blog/BlogHeader.astro";
 type Props = CollectionEntry<"yul-by-hacking">["data"];
-const { title, description, next } = Astro.props;
+const { title, description, next, prev } = Astro.props;
 ---
 
 <BaseLayout title={title} description={description}>
   <main class="max-w-[90vw] sm:max-w-none">
-    <BlogPostHeader title={title} to={next} />
+    <BlogPostHeader title={title} next={next} prev={prev} />
     <br />
     <article class="prose prose-sm max-w-[90ch] md:prose-base prose-headings:underline prose-a:text-red-600">
       <slot />

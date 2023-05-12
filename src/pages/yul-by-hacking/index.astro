@@ -5,7 +5,7 @@ const posts = (await getCollection("yul-by-hacking")).sort((a, b) => a.data.inde
 ---
 
 <Base title="Posts" , description="desc">
-  <section class="flex flex-col gap-3 my-5 sm:w-full">
+  <section class="flex flex-col gap-3 my-5 max-w-[90vw] sm:max-w-none w-full">
     <h2 class="text-lg">Learn Assembly By Hacking Smart Contracts</h2>
     <div>
       <p>
@@ -21,10 +21,10 @@ const posts = (await getCollection("yul-by-hacking")).sort((a, b) => a.data.inde
     <ul class="list-none text-left">
       {
         posts.map((post) => (
-          <li class="border-l-[1px] border-black ml-2 pl-5 my-2">
+          <li class="border-l-[1px] border-black ml-2 pl-5 my-5">
             <p class="font-bold">
               {"Part " + String(post.data.index + 1)} -
-              <a class="underline hover:text-red-600" href={`/yul-by-hacking/${post.slug}/`}>
+              <a class="underline text-red-600 hover:text-red-900" href={`/yul-by-hacking/${post.slug}/`}>
                 {post.data.title}
               </a>
             </p>
