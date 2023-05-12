@@ -1,0 +1,104 @@
+---
+index: 1
+title: ""
+description: ""
+---
+
+So we can see that the address is in there, and crucially the rest of the 32 byte word is padded with extra zeroes.
+
+This is a pretty crucial concept that we will need to remember when working with data in the EVM:
+
+- Decoding data in the right way is _essential_ when working with EVM data.
+
+Let's add a couple of steps to our logging, converting from a bytes32 value -> 32 byte/256 bit unsigned integer (uint256) -> 160 bit unsigned integer -> ethereum address (which is itself 160 bits):
+
+```solidity
+function testFetchAddress() public view {
+  bytes32 fetchedAddress;
+  assembly {
+    fetchedAddress := sload(target.slot)
+  }
+  console2.log("Fetched from assembly");
+  console2.logBytes32(fetchedAddress);
+
+  console2.log("Converted to 256 bit uint");
+  console2.log(uint(fetchedAddress));
+
+  console2.log("Converted to 160 bit uint");
+  console2.log(uint160(uint(fetchedAddress)));
+
+  console2.log("Converted to address");
+  console2.log(address(uint160(uint(fetchedAddress))));
+
+  console2.log("Fetched from solidity");
+  console2.log(address(target));
+}
+```
+
+aaaand the output:
+
+```
+Fetched from assembly
+0x0000000000000000000000005615deb798bb3e4dfa0139dfa1b3d433cc23b72f
+Converted to 256 bit uint
+491460923342184218035706888008750043977755113263
+Converted to 160 bit uint
+491460923342184218035706888008750043977755113263
+Converted to address
+0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f
+Fetched from solidity
+0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f
+```
+
+### The function signature
+
+Define the function signature as 4 bytes (8 characters of hex) of the keccak256 hash of the function name, for example:
+
+```js
+// example function
+function doStuff(address _to) public { /* */ }
+
+// the function signature
+"doStuff(address)"
+
+// keccak256 hash of the function signature
+"373cf23c710cb05bc335f291b632bd5850910a740614e32783c487b47f38ddc3"
+
+// the first 4 bytes
+"373cf23c"
+```
+
+If we were to look at the function loaded into a word on the calldata, we would get:
+
+```
+0x373cf23c0000000000000000000000008e851e94e1667Cd76Dda1A49f258934E2BCDCF3e
+  --------                        ----------------------------------------
+  signature                                        argument
+```
+
+Recall that, in solidity, we can make a low-level contract call in the following way:
+
+```solidity
+bytes memory data = abi.encodeWithSignature("doStuff(uint256)", (someNumber));
+
+address(Contract).call({value: _value})(data);
+```
+
+In Yul, things are slightly different. Let's look at the super useful [EVM Codes](https://www.evm.codes/#f1?fork=homestead)
+
+There's a lot there, but let's jump to just the parameters:
+
+> Stack input
+> gas: amount of gas to send to the sub context to execute. The gas that is not used by the sub context is returned to this one.
+> address: the account which context to execute.
+> value: value in wei to send to the account.
+> argsOffset: byte offset in the memory in bytes, the calldata of the sub context.
+> argsSize: byte size to copy (size of the calldata).
+> retOffset: byte offset in the memory in bytes, where to store the return data of the sub context.
+> retSize: byte size to copy (size of the return data).
+
+### Answer
+
+1. Call contribute with 1 wei to pass the require check in the fallbak.
+2. Call fallback with 1 wei to become the owner
+3. Call withdraw to extrac the balance of the contract.

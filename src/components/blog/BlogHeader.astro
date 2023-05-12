@@ -1,0 +1,14 @@
+---
+const { title, text, to } = Astro.props;
+---
+
+<div class="flex justify-between items-end my-5">
+  <h1 class="text-2xl italic">{title}</h1>
+  {
+    to && (
+      <a href={`/yul-by-hacking/${to}`} class="mr-2 text-red-600 font-bold underline">
+        {text ?? "Next"}
+      </a>
+    )
+  }
+</div>

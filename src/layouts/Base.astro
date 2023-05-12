@@ -10,11 +10,11 @@ const { title, description } = Astro.props;
 ---
 
 <!DOCTYPE html>
-<html class="flex flex-col items-center " lang="en">
+<html class="flex flex-col items-center" lang="en">
   <head>
     <BaseHead title={title} description={description} />
   </head>
-  <body class="flex items-center flex-col w-full max-w-[90ch] px-3">
+  <body class="flex items-center flex-col sm:w-full max-w-[90ch] sm:px-3">
     <Header title={title} />
     <slot />
     <Footer />

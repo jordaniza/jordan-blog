@@ -3,15 +3,14 @@ module.exports = {
   content: ["./src/**/*.{astro,html,js,jsx,md,mdx,svelte,ts,tsx,vue}"],
   theme: {
     extend: {
-      overflow: ["break-word"],
       typography: {
         DEFAULT: {
           css: {
+            code: {
+              "overflow-x": "scroll",
+            },
             pre: {
-              "overflow-wrap": "anywhere",
-              wordWrap: "break-word",
-              "overflow-x": "auto",
-              "white-space": "pre",
+              "overflow-x": "scroll",
             },
             "code::before": { content: "" },
             "code::after": { content: "" },
