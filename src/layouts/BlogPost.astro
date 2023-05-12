@@ -1,14 +1,14 @@
 ---
 import type { CollectionEntry } from "astro:content";
 import BaseLayout from "./Base.astro";
-type Props = CollectionEntry<"yul">["data"];
+type Props = CollectionEntry<"yul-by-hacking">["data"];
 const { title, description } = Astro.props;
 ---
 
 <BaseLayout title={title} description={description}>
   <main>
     <article
-      class="mt-5 prose max-w-[90ch] prose-img:rounded-xl prose-headings:underline prose-a:text-red-600 prose-wide:break-words"
+      class="mt-5 prose prose-sm md:prose-base max-w-[90ch] prose-img:rounded-xl prose-headings:underline prose-a:text-red-600 break-words"
     >
       <slot />
     </article>

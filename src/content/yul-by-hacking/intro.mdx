@@ -1,0 +1,75 @@
+---
+title: Introduction
+description: Structure of the project and how we will be working
+pubDate: 2023-05-11
+---
+
+# Part 1 - Introduction
+
+## Setting Up the Dev Environment
+
+We will be using [Foundry](getfoundry.sh) to run all our tests, as opposed to OpenZeppelin's deployed challenge. Reasons for this are as follows:
+
+- Foundry has excellent debugging tools that let us inspect the stack and memory line by line.
+- Testing our contracts is fast and easy to do, and we have a number of utilities built in to help us manipulate the state.
+
+I assume because you are looking at an assembly course, you've got a decent idea about how smart contracts work, how the Ethereum blockchain works, and how to write solidity. We will not cover any solidity syntax here unless we use some advanced features or utilities specific to foundry.
+
+We will be pulling the OZ ethernaut contracts directly from their [repo](https://github.com/OpenZeppelin/ethernaut/tree/master/contracts), but if you want a ready-to-go setup (with solutions), you can pull [my repo with everything setup](https://github.com/jordaniza/assemblynaut).
+
+Everything will be using the `solidity ^0.8.0` pragma. Not all the OZ contracts are written in v8, but with some small amendments to the contracts, we can replicate older behaviours.
+
+Assuming you have foundry and git installed:
+_(Windows users may want to use WSL)_
+
+```sh
+# update forge, chisel, cast and anvil
+foundryup
+
+# clone the repo and open the new directory
+git clone https://github.com/jordaniza/assemblynaut.git
+cd assemblynaut
+
+# build the repo
+forge build
+```
+
+You should be good to go!
+
+## How to get the most out of this series
+
+### Try not to jump to solutions
+
+It's tempting to reach for solutions sooner rather than later, especially when following tutorials and when the answer is right there. I'd suggest you don't do that. As with the pre-reading section below, give yourself time to learn things, and take a break if you don't get it straight away.
+
+Each article aims to eventually lead you to a solution, but at some stage I would prefer if you stopped, and finished the rest of the solution without me. To that end, we will be introducing relevant concepts and teasing answers, rather than providing a full solution, where possible. You can of course check the solutions on my [Github](https://github.com/jordaniza/assemblynaut/tree/main/test).
+
+### Do some pre-reading
+
+I'm writing this guide as a primer to assembly. But ultimately what I hope you takeaway from these posts is not the ability to shoehorn yul into every contract, nor show off what you know, instead it's a foundational and hands-on knowledge of how the EVM is processing your solidity code under the hood.
+
+Saying all that, a lot of what we will be doing relies on you having a working knowledge of what the EVM is, and the basics of Memory, Storage, Calldata and the EVM Stack Machine.
+
+So there's some pre-reading I want you to do.
+
+You may already have seen the absolutely excellent series from [@noxx](https://twitter.com/noxx3xxon) on the EVM, if you have, and you've digested it _thoroughly_, feel free to carry on, if not _READ THESE ARTICLES_:
+
+- [Chapter 1: EVM Basics](https://noxx.substack.com/p/evm-deep-dives-the-path-to-shadowy)
+- [Chapter 2: Memory](https://noxx.substack.com/p/evm-deep-dives-the-path-to-shadowy-d6b)
+- [Chapter 3: Storage and Slot Packing](https://noxx.substack.com/p/evm-deep-dives-the-path-to-shadowy-3ea)
+
+And by read, I mean take your time. I mean sit down - with a pen and paper if you have to - and go through this like you're back in school and studying alegbra.
+
+This stuff is not hard but, if you are new to a lot of low-level computer science concepts, it will be confusing. Let me repeat: take your time. If it takes you a week or two to go through all of the posts properly - good. You will have a proper solid foundation that will make the rest of this much, much easier.
+
+(And, for the record - this is [exactly what I did](https://github.com/jordaniza/Noxx-EVM-walkthroughs/tree/main/docs))
+
+### Have Fun
+
+All of this is a long-winded way of saying: don't put too much pressure on yourself.
+
+The best way to write good code is to write lots of bad code. Enjoy the process.
+
+## Feedback
+
+I'd welcome feedback - reach out to me at jordaniza (at) proton (dot) me or chat on [twitter](https://twitter.com/jordanimran2).

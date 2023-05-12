@@ -1,0 +1,40 @@
+---
+import { getCollection } from "astro:content";
+import FormattedDate from "../../components/FormattedDate.astro";
+import Base from "../../layouts/Base.astro";
+const posts = (await getCollection("yul-by-hacking")).sort(
+  (a, b) => a.data.pubDate.valueOf() - b.data.pubDate.valueOf()
+);
+---
+
+<Base title="Posts" , description="desc">
+  <section class="flex flex-col gap-3 my-5 w-full">
+    <h2 class="text-lg">Learn Assembly By Hacking Smart Contracts</h2>
+    <div>
+      <p>
+        Diving deep into Assembly was one of the most useful things I did as a Solidity developer. It taught me how the
+        EVM works and how to think more deeply about why the code I write works the way it does.
+      </p>
+      <br />
+      <p>
+        These posts take you from a working Solidity developer to someone who can read and write Assembly. We use the
+        popular OpenZeppelin Ethernaut CTF to learn Assembly by hacking smart contracts.
+      </p>
+    </div>
+    <ul class="list-none text-left">
+      {
+        posts.map((post) => (
+          <li class="border-l-[1px] border-black ml-2 pl-5 my-2">
+            <p class="font-bold">
+              <FormattedDate date={post.data.pubDate} /> -
+              <a class="underline hover:text-red-600" href={`/yul-by-hacking/${post.slug}/`}>
+                {post.data.title}
+              </a>
+            </p>
+            <p class="italic">{post.data.description}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+</Base>
