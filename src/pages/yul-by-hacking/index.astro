@@ -1,10 +1,7 @@
 ---
 import { getCollection } from "astro:content";
-import FormattedDate from "../../components/FormattedDate.astro";
 import Base from "../../layouts/Base.astro";
-const posts = (await getCollection("yul-by-hacking")).sort(
-  (a, b) => a.data.pubDate.valueOf() - b.data.pubDate.valueOf()
-);
+const posts = (await getCollection("yul-by-hacking")).sort((a, b) => a.data.index.valueOf() - b.data.index.valueOf());
 ---
 
 <Base title="Posts" , description="desc">
@@ -26,7 +23,7 @@ const posts = (await getCollection("yul-by-hacking")).sort(
         posts.map((post) => (
           <li class="border-l-[1px] border-black ml-2 pl-5 my-2">
             <p class="font-bold">
-              <FormattedDate date={post.data.pubDate} /> -
+              {"Part " + String(post.data.index + 1)} -
               <a class="underline hover:text-red-600" href={`/yul-by-hacking/${post.slug}/`}>
                 {post.data.title}
               </a>
