@@ -1,0 +1,260 @@
+---
+title: Setup
+description: Covering the basics of setting up our repo and development enviornment
+index: 1
+prev: intro
+next: fallback
+---
+
+## Topics Covered:
+
+- Setting up our project
+
+// something about what we are going to do
+
+## Setting Up the Dev Environment
+
+We will be using [Foundry](getfoundry.sh) to run all our tests, as opposed to OpenZeppelin's deployed challenge. Reasons for this are as follows:
+
+- Foundry has excellent debugging tools that let us inspect the stack and memory line by line.
+- Testing our contracts is fast and easy to do, and we have a number of utilities built in to help us manipulate the state.
+
+I assume because you are looking at an assembly course, you've got a decent idea about how smart contracts work, how the Ethereum blockchain works, and how to write solidity. We will not cover any solidity syntax here unless we use some advanced features or utilities specific to foundry.
+
+We will be pulling the OZ ethernaut contracts directly from their [repo](https://github.com/OpenZeppelin/ethernaut/tree/master/contracts), but if you want a ready-to-go setup (with solutions), you can pull [my repo with everything setup](https://github.com/jordaniza/assemblynaut).
+
+Everything will be using the `solidity ^0.8.0` pragma. Not all the OZ contracts are written in v8, but with some small amendments to the contracts, we can replicate older behaviours.
+
+Assuming you have foundry and git installed:
+_(Windows users may want to use WSL)_
+
+```sh
+# update forge, chisel, cast and anvil
+foundryup
+
+# clone the repo and open the new directory
+git clone https://github.com/jordaniza/assemblynaut.git
+cd assemblynaut
+
+# build the repo
+forge build
+```
+
+You should be good to go!
+
+## Project Structure
+
+Before we start, let's lay a foundation for how we are going to structure these tests, we are targeting the `Fallout` contract in Ethernaut, hence our project structure should look like this:
+
+```sh
+lib/                          # dependencies
+src/
+  |-- Fallback.sol            # target contract
+test/
+  |-- Fallback.t.sol          # attack contract
+foundry.toml                  # foundry config
+```
+
+### Fallback.sol:
+
+The first contract in Ethernaut is a relatively simple starting point, copy this code into the `Fallback.sol` file in the `src` folder:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract Fallback {
+    mapping(address => uint256) public contributions;
+    address public owner;
+
+    constructor() {
+        owner = msg.sender;
+        contributions[msg.sender] = 1000 * (1 ether);
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "caller is not the owner");
+        _;
+    }
+
+    function contribute() public payable {
+        require(msg.value < 0.001 ether);
+        contributions[msg.sender] += msg.value;
+        if (contributions[msg.sender] > contributions[owner]) {
+            owner = msg.sender;
+        }
+    }
+
+    function getContribution() public view returns (uint256) {
+        return contributions[msg.sender];
+    }
+
+    function withdraw() public onlyOwner {
+        payable(owner).transfer(address(this).balance);
+    }
+
+    receive() external payable {
+        require(msg.value > 0 && contributions[msg.sender] > 0);
+        owner = msg.sender;
+    }
+}
+```
+
+### Fallback.t.sol
+
+Our `Fallback.t.sol` will have the following structure:
+
+```solidity
+pragma solidity ^0.8.0;
+
+// import the forge test utilities
+import "forge-std/Test.sol";
+
+// import our target contract
+import "../src/Fallback.sol";
+
+// ensure our test contract has the forge test utils enabled
+contract ASMFallback is Test {
+
+    // here we will declare any state variables
+
+    function setUp() public {
+        // this function runs before each of our test
+        // functions, and is where we will set up
+        // our contract and state
+    }
+
+    function testAttackFallback() public {
+        // this is where our attack will go
+        // forge tests must always start with the word
+        // 'test' and be marked as `public` or `external`
+    }
+}
+```
+
+Let's fill this in: first let's define 2 state variables:
+
+1. Our `target` contract, which is of type `Fallout`
+2. Our `attacker` which is a nominal address
+
+```solidity
+pragma solidity ^0.8.0;
+
+import "forge-std/Test.sol";
+import "../src/Fallback.sol";
+
+contract ASMFallback is Test {
+    Fallback public target;
+    address payable public attacker = payable(address(420));
+
+    // ...
+}
+
+```
+
+Now, let's create our `setUp` hook, recall the aim of this challenge:
+
+> You will beat this level if:
+>
+> You claim ownership of the contract
+>
+> You reduce its balance to 0
+
+So we need to make sure the target is deployed and has some ether.
+For good measure, let's also give the attacker some ether.
+
+We can use foundry's `vm.deal(address who, uint256 wei)` to mint arbitrary amounts of wei to any address:
+
+```solidity
+function setUp() public {
+    target = new Fallback();
+    vm.deal(attacker, 1 ether);
+    vm.deal(address(target), 1000 ether);
+}
+```
+
+Lastly, we want to execute our test as the attacker. We can do this using foundry's `vm.startPrank(address who)` which will execute all subsequent functions as the address `who`.
+
+```solidity
+function testAttackFallback() public attack {
+  vm.startPrank(attacker);
+
+  // our exploit goes here
+
+  vm.stopPrank();
+}
+```
+
+Personal preference here, but this pattern is so common I like to mark the attack function as such with a modifier:
+
+```solidity
+modifier attack() {
+    vm.startPrank(attacker);
+    _;
+    vm.stopPrank();
+}
+
+function testAttackFallback() public attack {
+    // our exploit goes here
+}
+```
+
+Finally, set's complete the setup by defining our assertions: what must hold true for this challenge to be considered "Complete"?
+
+```solidity
+function testAttackFallback() public attack {
+  // ... exploit
+  // you claim ownership of the contract
+  assertEq(target.owner(), attacker);
+  // you reduce its balance to 0
+  assertEq(address(target).balance, 0);
+}
+
+```
+
+With that, we are good to go, putting it all together:
+
+```solidity
+pragma solidity ^0.8.0;
+
+import "forge-std/Test.sol";
+import "../src/Fallback.sol";
+
+contract ASMFallback is Test {
+    Fallback public target;
+    address payable public attacker = payable(address(420));
+
+    function setUp() public {
+        target = new Fallback();
+        vm.deal(attacker, 1 ether);
+        vm.deal(address(target), 1000 ether);
+    }
+
+    modifier attack() {
+        vm.startPrank(attacker);
+        _;
+        vm.stopPrank();
+    }
+
+    function testAttackFallback() public attack {
+        // assertions
+        assertEq(target.owner(), attacker);
+        assertEq(address(target).balance, 0);
+    }
+}
+```
+
+## Checking it all works
+
+Let's test everything is functioning as intended. We can run our tests using foundry's `forge test` command:
+
+```sh
+Failing tests:
+Encountered 1 failing test in test/Fallback.t.sol:ASMFallback
+[FAIL. Reason: Assertion failed.] testAttackFallback() (gas: 40534)
+```
+
+Test failing is fine in this case - we haven't written any logic.
+If you're not seeing the above for any reason ~~then you should feel bad~~ you should have more specific errors that tell you what's wrong.
+
+Assuming you ARE seeing the above, then we can get started on our [first exploit](/yul-by-hacking/fallback)
