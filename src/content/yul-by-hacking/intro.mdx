@@ -6,35 +6,9 @@ prev: "intro"
 next: "setup"
 ---
 
-## Setting Up the Dev Environment
+## Topics Covered:
 
-We will be using [Foundry](getfoundry.sh) to run all our tests, as opposed to OpenZeppelin's deployed challenge. Reasons for this are as follows:
-
-- Foundry has excellent debugging tools that let us inspect the stack and memory line by line.
-- Testing our contracts is fast and easy to do, and we have a number of utilities built in to help us manipulate the state.
-
-I assume because you are looking at an assembly course, you've got a decent idea about how smart contracts work, how the Ethereum blockchain works, and how to write solidity. We will not cover any solidity syntax here unless we use some advanced features or utilities specific to foundry.
-
-We will be pulling the OZ ethernaut contracts directly from their [repo](https://github.com/OpenZeppelin/ethernaut/tree/master/contracts), but if you want a ready-to-go setup (with solutions), you can pull [my repo with everything setup](https://github.com/jordaniza/assemblynaut).
-
-Everything will be using the `solidity ^0.8.0` pragma. Not all the OZ contracts are written in v8, but with some small amendments to the contracts, we can replicate older behaviours.
-
-Assuming you have foundry and git installed:
-_(Windows users may want to use WSL)_
-
-```sh
-# update forge, chisel, cast and anvil
-foundryup
-
-# clone the repo and open the new directory
-git clone https://github.com/jordaniza/assemblynaut.git
-cd assemblynaut
-
-# build the repo
-forge build
-```
-
-You should be good to go!
+- Why Do this
 
 ## How to get the most out of this series
 
