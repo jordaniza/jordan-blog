@@ -1,7 +1,9 @@
 ---
 import type { CollectionEntry } from "astro:content";
+import ToTop from "../components/solid/ToTop";
 import BaseLayout from "./Base.astro";
 import BlogPostHeader from "../components/blog/BlogHeader.astro";
+import NextPrev from "../components/blog/NextPrev.astro";
 type Props = CollectionEntry<"yul-by-hacking">["data"];
 const { title, description, next, prev } = Astro.props;
 ---
@@ -10,8 +12,14 @@ const { title, description, next, prev } = Astro.props;
   <main class="max-w-[90vw] sm:max-w-none">
     <BlogPostHeader title={title} next={next} prev={prev} />
     <br />
-    <article class="prose prose-sm max-w-[90ch] md:prose-base prose-headings:underline prose-a:text-red-600">
+    <article
+      class="prose prose-sm max-w-[90ch] md:prose-base prose-headings:underline prose-a:text-red-600 hover:prose-a:text-red-900"
+    >
       <slot />
     </article>
   </main>
+  <div class="w-full mt-5 flex flex-col items-center text-center">
+    <NextPrev next={next} prev={prev} />
+    <ToTop client:visible />
+  </div>
 </BaseLayout>

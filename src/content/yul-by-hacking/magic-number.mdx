@@ -1,0 +1,531 @@
+---
+title: Magic Number
+description: Wrestling with the basics by jumping into raw bytecode
+index: 2
+prev: setup
+---
+
+The first challenge we are going to take on is less of an exploit and more of a review of a number of super important foundations when dealing with assembly. We're going to cover a decent chunk of ground here but by the end, we should have a good grasp of what actually happens _at the bytecode level_ when we send a call to a contract.
+
+## Topics Covered
+
+- Reading Bytecode instructions
+- Creating a contract using assembly
+- Runtime vs Creation bytecode
+
+## The challenge:
+
+> To solve this level, you only need to provide the Ethernaut with a Solver, a contract that responds to `whatIsTheMeaningOfLife()` with the right number...
+> ...The solver's code needs to be really tiny. Really reaaaaaallly tiny. Like freakin' really really itty-bitty tiny: 10 opcodes at most.
+
+Sounds interesting. What does the contract look like?
+
+```solidity
+pragma solidity ^0.8.0;
+
+contract MagicNum {
+    address public solver;
+    constructor() {}
+    function setSolver(address _solver) public {
+        solver = _solver;
+    }
+}
+```
+
+Simple enough. Let's setup our test:
+
+```solidity
+pragma solidity ^0.8.0;
+
+import "forge-std/Test.sol";
+import "../src/MagicNum.sol";
+
+contract ASMMagicNum is Test {
+    MagicNum public target;
+    function setUp() public {
+        target = new MagicNum();
+    }
+
+    function testAttackMagicNum() public {
+        // fetch the solver from the MagicNum contract
+        address solver = target.solver();
+        // ensure that the code length is 10 bytes
+        assertLe(solver.code.length, 10);
+        // call solver with "whatIsTheMeaningOfLife()"
+        (, bytes memory data) = solver.call(abi.encodeWithSignature("whatIsTheMeaningOfLife()"));
+        // decode the data and check it's correct
+        uint256 decoded = abi.decode(data, (uint256));
+        assertEq(decoded, 42);
+    }
+}
+```
+
+Our test is pretty simple. We setup the contract, then grab the solver from the contract and validate that the code length is, in fact, less than or equal to 10 bytes. Finally we call the address stored there with `whatIsTheMeaningOfLife()`. Finally, we check the data is equal to 42.
+
+## Below 10 bytes
+
+If we try and solve this in solidity, the solution might look like:
+
+```solidity
+contract Solver {
+  function whatIsTheMeaningOfLife() external pure returns (uint) {
+    return 42;
+  }
+}
+
+contract ASMMagicNum is Test {
+   // ...
+    function testAttackMagicNum() public {
+        target.setSolver(address(new Solver()));
+        address solver = target.solver();
+        // ...
+    }
+}
+```
+
+However, this will predictably fail:
+
+```sh
+[FAIL. Reason: Assertion failed.] testAttackMagicNum() (gas: 100157)
+Logs:
+  Error: a <= b not satisfied [uint]
+    Value a: 119
+    Value b: 10
+```
+
+Getting `solver` to 10 bytes is one thing, but a valid question we might want to ask is: how do we even deploy bytecode to an address?
+
+One option for us is to use one of foundry's inbuilt cheat codes so we can start working on the solution.
+
+(Don't worry - by the end of this article we will do things the "proper" way)
+
+### Cheating a bit
+
+`vm.etch` is a nifty little cheatcode that allows us to write arbitrary data to an address. This will allow us to write a raw bytecode solution without having to run through contract creation (yet). It takes 2 arguments:
+
+- The address to write to
+- The hexadecimal data to write
+
+We can add it to our test in 2 lines, first we define a variable `solverBytecode`:
+
+```solidity
+contract ASMMagicNum is Test {
+    MagicNum public target;
+
+    // here we can put whatever code we want, the ffffff is just random data
+    bytes solverBytecode = hex"ffffff";
+```
+
+And let's use the cheatcode in our test
+
+```solidity
+    function testAttackMagicNum() public {
+        address solver = target.solver();
+
+        vm.etch(solver, solverBytecode);
+
+        // ensure that the code length is 10 bytes
+        assertLe(solver.code.length, 10);
+```
+
+Running our test command gives the new log:
+
+```sh
+[FAIL. Reason: EvmError: Revert] testAttackMagicNum() (gas: 9079256848778899555)
+Traces:
+  [9079256848778899555] ASMMagicNum::testAttackMagicNum()
+    ├─ [2325] MagicNum::solver() [staticcall]
+    │   └─ ← 0x0000000000000000000000000000000000000000
+    ├─ [0] VM::etch(0x0000000000000000000000000000000000000000, 0xffffff)
+    │   └─ ← ()
+    ├─ [0] 0x0000000000000000000000000000000000000000::whatIsTheMeaningOfLife()
+    │   └─ ← "EvmError: StackUnderflow"
+    └─ ← "EvmError: Revert"
+
+Test result: FAILED. 0 passed; 1 failed; finished in 463.39µs
+```
+
+(You might see `650500c1()` in place of `whatIsTheMeaningOfLife()`, we will touch on all this in another post).
+
+Whoa there...`StackUnderflow`, sounds scary. But at least we've made it past the `code.length` check? Let's breakdown what's actually going on here.
+
+### Runtime
+
+When we call `solver`, the EVM does nothing more than **execute the code that exists at that address, with the calldata passed to it**.
+
+In our case, the following steps happen:
+
+- We haven't set a solver, so solver returns the zero address
+- We have stored the bytecode `0xffffff` at the zero address using `vm.etch`
+- `address(0x0)` is called with the signature `"whatIsTheMeaningOfLife()"` and no additional calldata.
+
+Usually, when we call a contract in solidity, the compiled contract will check that the function `whatIsTheMeaningOfLife()` exists, and revert if it does not. This is typically achieved using a jumptable embedded into the contract bytecode (`JUMP`, `JUMPI` and `JUMPDEST` being the relevant opcodes you will see in most contracts).
+
+In our case, we don't have any of that. Instead we have `0xffffff`, which can be written as 3 bytes of the opcode `0xFF`/[SELFDESTRUCT](https://www.evm.codes/#ff?fork=shanghai)
+
+We can check this by stepping into the debugger:
+
+```sh
+forge test --debug testAttackMagicNum
+```
+
+This will walk you line by line through the contract execution, keep moving until you get to the following spot.
+
+(This is the state of the EVM as right before we call our `solver` contract. Don't worry if none of this makes sense just yet.)
+
+![magic-call](/ybh/magic/call.png)
+
+Advancing one more step, and this is what it looks like when we are calling our `solver` contract. Notice that we have an empty stack, nothing in memory, but that we are at the zero address:
+
+![magic-call](/ybh/magic/selfdestruct.png)
+
+If we check the OPCODE info for [SELFDESTRUCT](https://www.evm.codes/#ff?fork=shanghai) we can see that it takes 1 argument - **Stack input**:
+
+> address: account to send the current balance to (see BALANCE or SELFBALANCE since Istanbul fork).
+
+So the first SELFDESTRUCT call is trying to operate on an empty stack - impossible and hence the `StackUnderflow` error we mentioned above.
+
+All well and good, but also kinda useless. Let's actually write some useful code.
+
+## An actual solution
+
+What we want to do is actually really simple:
+
+When the address stored in `target.solver` is called, return the number 42.
+
+Let go back to our friend EVM Codes, this time for the [RETURN OPCODE](https://www.evm.codes/#f3?fork=shanghai)
+
+Straight away we can see that `RETURN` expects 2 arguments from the stack:
+
+> 1. offset: byte offset in the memory in bytes, to copy what will be the return data of this context.
+> 2. size: byte size to copy (size of the return data).
+
+### Offset
+
+Recall how memory is stored in the EVM: it's a giant array that is wiped between contract calls. We can store whatever data we want in there, and we can fetch it by pointing to _the location in memory from where we want to fetch._
+
+"the location in memory from where we want to fetch" is also known as the `offset` above.
+
+Examples (spaces added for readability):
+
+```sh
+# Offset 0x00
+0000 0000 0000 0000 0000 0000
+^
+# Offset 0x04
+0000 0000 0000 0000 0000 0000
+          ^
+```
+
+(Remember that the offset in our case is in bytes, which are represented by 2 hex characters.)
+
+### Size
+
+Size is very simple: starting from the offset, it just represents how many bytes to return, so if your data at offset 0x02 is `DEADC0FFEE00000000000...`, size of `0x02` will return `0xDEAD`, while size of `0x05` will return `0xDEADC0FFEE`.
+
+### Putting it together
+
+The EVM is a stack machine, so the OPCODE `RETURN` will take its arguments sequentially, from the top of the stack. Meaning we need the stack to look like:
+
+```sh
+0 | OFFSET
+1 | SIZE
+```
+
+We will therefore need to make sure that, at the offset, the number `42` / `0x2a` is stored in Memory at the offset that we choose.
+
+## Storing in Memory
+
+Memory has 2 opcodes for storage [MSTORE](https://www.evm.codes/#52?fork=shanghai) and [MSTORE8](https://www.evm.codes/#53?fork=shanghai).
+
+Both take 2 arguments, an offset (which we discussed above) that says where in memory to **store** the data, and a `value` argument.
+
+For `MSTORE` the value will be left padded and stored as a full 256 bit word, for `MSTORE8` the value is stored as an 8 bit value.
+
+When we return the value, the data will be read as a full word, so we need to return:
+
+```sh
+0000 0000 0000 0000
+0000 0000 0000 0000
+0000 0000 0000 0000
+0000 0000 0000 002a
+```
+
+You might notice that there are 2 ways to do this:
+
+1. MSTORE the value `0x2a` starting at offset zero
+2. MSTORE8 the value `0x2a` starting at offset `0x1f` (31 bytes)
+
+[Here's a link to the EVM Playground to demonstrate](https://www.evm.codes/playground?fork=shanghai&unit=Wei&codeType=Mnemonic&code='ytzwzzy8tx1fsvNOT%20OKAY'%3Aux00sz'~zPUSH1%200z%5CnyvWITH%20wwMSTOREv%2F%2Ft~x2a~t%20uszw8zz%01stuvwyz~_)
+
+Doesn't matter enormously which one you prefer for this exercise.
+
+## Bytecode Solution
+
+Let's write our bytecode.
+
+`60` is the opcode for [PUSH1](https://www.evm.codes/#60?fork=shanghai). It takes the next opcode and...pushes it to the stack.
+
+We start with the above: we store `0x2a` as the last byte in a 32 byte word, at the zero offset in memory:
+
+```sh
+60 2a                   // PUSH1 VALUE (0x2a = 42)
+60 1f                   // PUSH1 MEMORY OFFSET (31 bytes)
+53                      // MSTORE8 (offset, value)
+```
+
+Then, we need to return it with opcode `f3` as above.
+
+```sh
+60 20                   // PUSH1: RETURN DATA SIZE (32 bytes)
+60 00                   // PUSH1: MEMORY OFFSET (0 bytes)
+f3                      // RETURN (offset, size)
+```
+
+Hopefully, after the above, that's not too scary.
+
+Put together we have the full bytecode `602a601f5360206000f3` - a perfect 10 bytes!
+
+Let's give this a whirl and see what happens!
+
+```solidity
+contract ASMMagicNum is Test {
+    MagicNum public target;
+
+    bytes solverBytecode = hex"602a601f5360206000f3";
+
+    // ... rest of the contract
+}
+```
+
+Run it with full logging to see the stack trace:
+
+```sh
+forge test --mt testAttackMagicNum -vvvvv
+```
+
+```sh
+Running 1 test for test/MagicNum.t.sol:ASMMagicNum
+[PASS] testAttackMagicNum() (gas: 13766)
+Traces:
+  [104173] ASMMagicNum::setUp()
+    ├─ [49699] → new MagicNum@0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f
+    │   └─ ← 248 bytes of code
+    └─ ← ()
+
+  [13766] ASMMagicNum::testAttackMagicNum()
+    ├─ [2325] MagicNum::solver() [staticcall]
+    │   └─ ← 0x0000000000000000000000000000000000000000
+    ├─ [0] VM::etch(0x0000000000000000000000000000000000000000, 0x602a601f5360206000f3)
+    │   └─ ← ()
+    ├─ [18] 0x0000000000000000000000000000000000000000::whatIsTheMeaningOfLife()
+    │   └─ ← 0x000000000000000000000000000000000000000000000000000000000000002a
+    └─ ← ()
+
+Test result: ok. 1 passed; 0 failed; finished in 292.50µs
+```
+
+Test passed! That's great news!
+
+If you want to see the contract step-by-step, call `forge test --debug testAttackMagicNum` to see the stack, memory and contract in action.
+
+Interestingly enough, we can see in the logs that the function `whatIsTheMeaningOfLife()` was called and returns `42` / `0x2a` even though we didn't specify any functions in our bytecode. As mentioned earlier - normally solidity will compile our bytecode with JUMP logic for different defined functions (more on these in other sections) and REVERT if nothing was found. In our case **no matter what we call the function will return 42**. Try it for yourself.
+
+## Removing Etch
+
+We've been using foundry's `vm.etch` cheatcode to write contract data to an address. We can hardly call ourselves pro-hackers if we need to artificially manipulate the EVM state to win. This will not do...
+
+In order to remove Etch, we will have to _deploy_ our bytecode. This means we need to create a contract, and fetch the deployed address.
+
+### CREATE
+
+[CREATE](https://www.evm.codes/#f0?fork=shanghai) is a bit of a mouthful when you first read it:
+
+> Creates a new contract. Enters a new sub context of the calculated destination address and executes the provided initialisation code, then resumes the current context.
+
+In simple english, this just means that CREATE runs whatever code you pass to it.
+
+The code that we pass to CREATE must also RETURN the bytecode we want to deploy.
+
+As a worflow:
+
+1. Call CREATE
+2. CREATE runs the passed code ("contract creation bytecode")
+3. The code returns some more code ("runtime bytecode")
+4. The CREATE opcode deployed the returned code at an address.
+5. The CREATE opcode then sends the address back to the caller.
+
+The creation bytecode is discarded once CREATE is run - this is the bytecode that contains the `constructor` logic in smart contracts. Once run, it's discarded, and only the runtime bytecode is stored onchain.
+
+### Arguments
+
+If we look at the arguments to CREATE, we have 3 Inputs from the Stack:
+
+> 1. value: value in wei to send to the new account.
+> 2. offset: byte offset in the memory in bytes, the initialisation code for the new account.
+> 3. size: byte size to copy (size of the initialisation code).
+
+So CREATE, similarly to RETURN, is reading from memory. We therefore need to load our contract bytecode into memory first:
+
+```sh
+69 602a601f5360206000f3 // PUSH10 (runtime bytecode) (see below)
+60 00                   // PUSH MEMORY OFFSET (0 bytes) to return from
+52                      // MSTORE (offset, value) the bytecode at position zero
+```
+
+Hopefully this is fairly self explanatory at this point. The runtime bytecode is just taken from above and we store it as a single 32 bytes word, left padded, starting at the zero offset in memory.
+
+For RETURN, it's similar:
+
+```sh
+60 0a                   // PUSH1 RETURN DATA SIZE (10 bytes - bytecode len)
+60 16                   // PUSH1 MEMORY OFFSET (22 bytes - offset for padding)
+f3                      // RETURN (offset, size)
+```
+
+The only thing to remember here is that, because we used `MSTORE`, the bytecode is loaded with [22 bytes of zero padding](https://www.evm.codes/playground?fork=shanghai&unit=Wei&codeType=Mnemonic&code='q10%200x602a601f5360206000f3zq10vruntimejcode%7Dvseepelow%7D%5Cnq1%200x00kkzq%20MEMORY%20OFFSETv0js%7D%20to%20return%20from%5CnMSTOREkk~zMSTORE%20'~%20%20%20z%20%2F%2F%20v%20%7BqPUSHp%20bk~~~jpyte%01jkpqvz~_)
+
+## Trying to Solve
+
+See what happens when you replace the bytecode with the bytecode above:
+
+```solidity
+    bytes solverBytecode = hex"69602a601f5360206000f3600052600a6016f3";
+```
+
+It should fail because now the bytecode is too long. We're not actually calling the create command we're writing the full contract creation bytecode to `address(0)` still. We still need to call `CREATE` somewhere, and for that we need to move to inline assembly...
+
+## CREATE in Yul
+
+We're now ready to write some assembly in the Yul language, versus raw bytecode.
+
+What we need to do is:
+
+1. Take our bytecode saved in contract storage
+2. Save it to memory
+3. Fetch the length of our data
+4. Call `create` and pass it the correct length of our data
+5. Save the address of the created contract and set the solver
+
+### 1. Getting our bytecode data from storage
+
+Recall that all contract variables are stored in a contract's own **storage slots**. Contract storage is a big topic, but the following points are relevant for us:
+
+- Slots start at slot 0
+- Slots are 32 bytes in size
+- If a contract inherits another contract, the child contract's slots start after the parent contract's slots end:
+
+![storage slots](/ybh/magic/storage.png)
+
+In our case, bytecode data is stored as `bytes` type in the storage variable `solverBytecode`. Bytes is a dynamic type, with complex storage rules that we aren't going to go into here. What we need to know is that when working with less than 32 bytes, the data will be stored in the storage slot.
+
+We can fetch this very simply in Yul assembly:
+
+```solidity
+function testAttackMagicNum() public {
+    assembly {
+        // we know there are less than 32 bytes so the data in the slot is the bytecode
+        let data := sload(solverBytecode.slot)
+    }
+```
+
+Here, we are calling the [SLOAD](https://www.evm.codes/#54?fork=shanghai) opcode, which will return the full 32 bytes of data in the passed storage slot, and saving it in our `data` variable, which we have declared with the `let data := ` assignment.
+
+You'll notice that, in Yul, we don't manipulate the stack directly, the compiler is still around and will make sure the `solverBytecode.slot` is passed to SLOAD, and that the variable `data` is properly managed. Already we can see that Yul/Inline assembly offers a number of advantages versus writing raw, EVM bytecode!
+
+### 2. Saving our bytecode data to memory
+
+We already covered the opcode MSTORE in bytecode, its Yul counterpart is very similar; pass it a memory location and the data we want to store:
+
+```solidity
+assembly {
+        let data := sload(solverBytecode.slot)
+
+        // save the data
+        mstore(0x00, data)
+}
+```
+
+### 3. Getting our data length
+
+We know our data is 19 bytes or `0x13` long. Yul let's us hardcode this and it would work just fine.
+
+Alternatively, the EVM encodes the length of `bytes` data as **the last byte in the array**.
+
+Put another way: our data length can be directly fetched from the data itself.
+
+The code to do this is to use a bitwise AND on just the last byte. AND takes 2 values and returns 1 for a the resulting binary value only if BOTH binary values are equal to 1, for example:
+
+```sh
+>>> 0x13041313944093
+100110000010000010011000100111001010001000000 | 10010011
+>>> 0xff                                      |
+000000000000000000000000000000000000000000000 | 11111111
+>>> 0x13041313944093 & 0xff                   |
+000000000000000000000000000000000000000000000 | 10010011
+                                              ^
+                                data past here is removed
+```
+
+For us, if we just want the last byte, we can call `and(data, 0xff)` to fetch the length of our bytecode:
+
+```solidity
+  assembly {
+        // we know there are less than 32 bytes so the data in the slot is the bytecode
+        let data := sload(solverBytecode.slot)
+
+        // length of the data is stored at the end of the slot in the last byte
+        // we can fetch with a bitwise AND using a mask over the final byte
+        let len := and(data, 0xff)
+    }
+```
+
+### Final call
+
+All that's left is to call create and save the address:
+
+```solidity
+
+  // define the address here so we can access it outside of the assembly block
+  address _solver;
+  assembly {
+        // we know there are less than 32 bytes so the data in the slot is the bytecode
+        let data := sload(solverBytecode.slot)
+
+
+        // length of the data is stored at the end of the slot in the last byte
+        // we can fetch with a bitwise AND using a mask over the final byte
+        let len := and(data, 0xff)
+
+
+        // we can pass the memory start offset and length to the create opcode
+        // which will create a new sub context and return us the address where the init bytecode is deployed
+        _solver := create(0, 0x00, len)
+    }
+
+    // now set the solver to our created address
+    target.setSolver(_solver);
+
+    // ... rest of the test
+```
+
+Run `forge test` on the contract and check the logs:
+
+```sh
+[65569] ASMMagicNum::testAttackMagicNum()
+    ├─ [2018] → new <Unknown>@0x2e234DAe75C793f67A35089C9d99245E1C58470b
+    │   └─ ← 10 bytes of code
+    ├─ [22402] MagicNum::setSolver(0x2e234DAe75C793f67A35089C9d99245E1C58470b)
+    │   └─ ← ()
+    ├─ [325] MagicNum::solver() [staticcall]
+    │   └─ ← 0x2e234DAe75C793f67A35089C9d99245E1C58470b
+    ├─ [18] 0x2e234DAe75C793f67A35089C9d99245E1C58470b::whatIsTheMeaningOfLife()
+    │   └─ ← 0x000000000000000000000000000000000000000000000000000000000000002a
+    └─ ← ()
+```
+
+Congratulations. That was a long one but you made it!
+
+You'll notice we are still calling `setSolver(_solver)` using solidity. This post was getting way too long as it is, so let's leave calling contracts for another day but, you are welcome to try implementing yourself!
+
+Till next time anon.

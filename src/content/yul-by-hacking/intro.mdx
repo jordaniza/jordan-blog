@@ -2,23 +2,55 @@
 title: Introduction
 description: Structure of the project and how we will be working
 index: 0
-prev: "intro"
 next: "setup"
 ---
 
 ## Topics Covered:
 
-- Why Do this
+- Why learn Assembly?
+- What this series covers
+- Pre-reading
 
-## How to get the most out of this series
+## Intro and...what are we doing here?
 
-### Try not to jump to solutions
+I beleive that there's a lot of merit in taking the long way round, and taking the time to learn technologies in depth is part of that.
 
-It's tempting to reach for solutions sooner rather than later, especially when following tutorials and when the answer is right there. I'd suggest you don't do that. As with the pre-reading section below, give yourself time to learn things, and take a break if you don't get it straight away.
+No, it's not strictly neccessary to know Assembly to write smart contracts. But understanding assembly requires an complementary understanding of the EVM which is _definitely_ required to write smart contracts. On top of this it's a great refresher on a number of core computer science concepts.
 
-Each article aims to eventually lead you to a solution, but at some stage I would prefer if you stopped, and finished the rest of the solution without me. To that end, we will be introducing relevant concepts and teasing answers, rather than providing a full solution, where possible. You can of course check the solutions on my [Github](https://github.com/jordaniza/assemblynaut/tree/main/test).
+Learning assembly for me has been part of a long, ongoing, journey to write better code and design better applications in an incredibly complex environment.
 
-### Do some pre-reading
+### Why hacking?
+
+I've seen plenty of articles on assembly (such as [Jean Cvllr's excellent Medium series](https://jeancvllr.medium.com/solidity-tutorial-all-about-assembly-5acdfefde05c)) but I, personally, learn best with theory _and_ practice.
+
+Hacking contracts is a great excuse to learn by _doing_. The Ethernaut challenges we are using give us a clear set of targets to aim for, and allow us to explore different assembly concepts bit-by-bit. Crucially, because we have a clear criteria for success, we can't get away with partial or false understandings.
+
+Hacking forces us to think in an adversarial manner - a super important frame of mind to keep ourselves in while writing secure contracts.
+
+Most importantly, solving the challenges is rewarding. You'll be able to look back and see a clear sense of progress as you complete each one.
+
+## What this series covers
+
+We're going to cover a lot of ground here. It's going to be bumpy ground at times.
+
+By the end of this series you will understand:
+
+- The differences between storage, memory and calldata
+- Basic stack manipulation
+- How to read and debug contract execution at the bytecode level
+- Handling static vs dynamic data types
+- Low level contract deployment
+- Low level function calls
+- How bytecode gets processed
+- Different exploits uniquely enabled by using assembly
+
+We're not going to cover every contract in Ethernaut because...it'll get boring and repetitive fast.
+
+Instead, we're going to focus on a few select challenges that I believe will cover a decent spectrum of assembly concepts.
+
+In the spirit of learning though, anon, I encourage you to complete at least a couple of these unfinished challenges entirely with the training wheels off. I'll leave a note at the end of each challenge with some suggested follow ups that might be good ways to test what's been covered so far.
+
+## Some pre-reading
 
 I'm writing this guide as a primer to assembly. But ultimately what I hope you takeaway from these posts is not the ability to shoehorn yul into every contract, nor show off what you know, instead it's a foundational and hands-on knowledge of how the EVM is processing your solidity code under the hood.
 
@@ -32,7 +64,7 @@ You may already have seen the absolutely excellent series from [@noxx](https://t
 - [Chapter 2: Memory](https://noxx.substack.com/p/evm-deep-dives-the-path-to-shadowy-d6b)
 - [Chapter 3: Storage and Slot Packing](https://noxx.substack.com/p/evm-deep-dives-the-path-to-shadowy-3ea)
 
-And by read, I mean take your time. I mean sit down - with a pen and paper if you have to - and go through this like you're back in school and studying alegbra.
+And by read, I mean take your time: sit down - with a pen and paper if you have to - and go through this like you're back in school and studying alegbra.
 
 This stuff is not hard but, if you are new to a lot of low-level computer science concepts, it will be confusing. Let me repeat: take your time. If it takes you a week or two to go through all of the posts properly - good. You will have a proper solid foundation that will make the rest of this much, much easier.
 
@@ -40,10 +72,10 @@ This stuff is not hard but, if you are new to a lot of low-level computer scienc
 
 ### Have Fun
 
-All of this is a long-winded way of saying: don't put too much pressure on yourself.
+All of this is a long-winded way of saying: don't put too much pressure on yourself - the best way to write good code is to write lots of bad code. Enjoy the process.
 
-The best way to write good code is to write lots of bad code. Enjoy the process.
+LFG.
 
 ## Feedback
 
-I'd welcome feedback - reach out to me at jordaniza (at) proton (dot) me or chat on [twitter](https://twitter.com/jordanimran2).
+Reach out to me at jordaniza (at) proton (dot) me or chat on [twitter](https://twitter.com/jordanimran2).

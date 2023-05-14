@@ -1,23 +1,9 @@
 ---
-const { title, text, next, prev } = Astro.props;
+import NextPrev from "./NextPrev.astro";
+const { title, next, prev } = Astro.props;
 ---
 
 <div class="flex justify-between items-end my-5">
   <h1 class="text-2xl italic">{title}</h1>
-  <div>
-    {
-      prev && (
-        <a href={`/yul-by-hacking/${prev}`} class="mr-2 text-red-600 hover:text-red-900 font-bold underline">
-          {text ?? "Prev"}
-        </a>
-      )
-    }
-    {
-      next && (
-        <a href={`/yul-by-hacking/${next}`} class="mr-2 text-red-600 hover:text-red-900 font-bold underline">
-          {text ?? "Next"}
-        </a>
-      )
-    }
-  </div>
+  <NextPrev next={next} prev={prev} />
 </div>

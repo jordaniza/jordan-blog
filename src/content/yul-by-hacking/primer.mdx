@@ -1,0 +1,102 @@
+---
+title: Appendix - Primer
+description: An optional primer into hex, bits, bytes and data encoding.
+index: 3
+---
+
+## Topics Covered
+
+- Hex, decimal and binary representation
+- A refresher on reading different hex strings
+
+## Optional Primer
+
+We're going to be reading a lot of raw bytecode data, so it's important to recall some of the basics around low-level data representations. In particular some of the differences between representations in different base formats, and how that looks in our editor.
+
+## Base notation
+
+All data in the EVM is ultimately expressed as machine code, which is typically represented as hexadecimal bytecode, prefixed with `0x`.
+
+Most of the time we are looking at EVM code, we are looking at hexadecimal, you can do a quick conversion using foundry's `chisel` CLI:
+
+```sh
+Welcome to Chisel! Type `!help` to show available commands.
+➜ 123
+Type: uint
+├ Hex: 0x7b
+└ Decimal: 123
+➜ 0x123
+Type: uint
+├ Hex: 0x123
+└ Decimal: 291
+➜
+```
+
+Equally, hex or decimal can be represented as binary. Solidity doesn't have a very easy way to represent values in binary, but in python we can use the native `bin` function, which will prefix binary values with `0b`:
+
+```python
+>>> bin(0xff)
+'0b11111111'
+```
+
+So, as an example:
+
+| Decimal | Hexadecimal | Binary       |
+| ------- | ----------- | ------------ |
+| 1       | `0x01`      | `0b1`        |
+| 2       | `0x02`      | `0b10`       |
+| 10      | `0x0a`      | `0b1010`     |
+| 32      | `0x20`      | `0b100000`   |
+| 255     | `0xff`      | `0b11111111` |
+
+Note that `0x01` is, strictly speaking, the same as `0x1`. However we often think about bytecode (clue is in the name) in terms of 8 bit / 1 byte values, therefore `0x01` more explicit than `0x1`. More importantly, `0x1` can sometimes be incorrectly loaded as `0x10` if you're not careful, which will definitely cause issues.
+
+It's important to bear in mind when reading logs like the below:
+
+![foundry-log](/ybh/primer-1.png)
+
+Say we're looking at the value `80` at the end of line `02` in the above image. This is `0x80`, or 128 in decimal, not 80, which would be `0x50`.
+
+## Hex Characters versus Length
+
+Armed with the above knowledge, we can tackle something that I personally found extremely confusing when I first was trying to understand the EVM.
+
+Take the humble Ethereum Address:
+
+`0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045`
+
+How _long_ is the above address?
+
+- 160 bits (each address can be represented as a `uint160`)
+- 20 bytes (8 bits in a byte => 160/8)
+- 40 hexadecimal characters (1 byte = 2 characters)
+
+The 40 characters can trip you up occassionally, for example:
+
+```solidity
+    bytes solverBytecode = hex"69602a601f5360206000f3600052600a6016f369602a601f5360206000f3600052600a6016f3";
+
+    function testByteCodeLen() public {
+      uint len;
+      assembly {
+        len := sload(solverBytecode.slot)
+      }
+      console2.log("ASM Length:", len);
+      console2.log("Solidity Length:", solverBytecode.length);
+    }
+```
+
+`forge test --match test testByteCodeLen` gives the logs:
+
+```sh
+[PASS] testByteCodeLen() (gas: 6434)
+Logs:
+  ASM Length: 77
+  Solidity Length: 38
+```
+
+What's going on here?
+
+The length of the aray data is stored in terms of _hex characters_ (starting at length 1), which we can see via loading directly from assembly.
+
+Conversely, solidity recognises that the variable `solverBytecode` is of type `bytes`, and correctly returns that the length, in bytes, is (76 hex characters / 2) 38 bytes in length.

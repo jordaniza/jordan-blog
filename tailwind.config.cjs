@@ -7,10 +7,10 @@ module.exports = {
         DEFAULT: {
           css: {
             code: {
-              "overflow-x": "scroll",
-            },
-            pre: {
-              "overflow-x": "scroll",
+              background: "blanchedalmond",
+              padding: "0.5px 3px",
+              borderRadius: "0.3em",
+              fontWeight: "normal",
             },
             "code::before": { content: "" },
             "code::after": { content: "" },
