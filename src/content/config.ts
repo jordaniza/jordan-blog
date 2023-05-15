@@ -8,6 +8,7 @@ const blog = defineCollection({
     index: z.number(),
     next: z.string().optional(),
     prev: z.string().optional(),
+    appendix: z.boolean().optional(),
   }),
 });
 

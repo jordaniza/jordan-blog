@@ -1,18 +1,19 @@
 ---
+import { HACKING } from "../../consts";
 const { next, prev } = Astro.props;
 ---
 
 <div class="flex text-center gap-3">
   {
     prev && (
-      <a href={`/yul-by-hacking/${prev}`} class=" text-red-600 hover:text-red-900 font-bold underline">
+      <a href={`/${HACKING}/${prev}`} class=" text-red-600 hover:text-red-900 font-bold underline">
         Prev
       </a>
     )
   }
   {
     next && (
-      <a href={`/yul-by-hacking/${next}`} class=" text-red-600 hover:text-red-900 font-bold underline">
+      <a href={`/${HACKING}/${next}`} class=" text-red-600 hover:text-red-900 font-bold underline">
         Next
       </a>
     )

@@ -4,7 +4,9 @@ import ToTop from "../components/solid/ToTop";
 import BaseLayout from "./Base.astro";
 import BlogPostHeader from "../components/blog/BlogHeader.astro";
 import NextPrev from "../components/blog/NextPrev.astro";
-type Props = CollectionEntry<"yul-by-hacking">["data"];
+import type { HACKING } from "../consts";
+
+type Props = CollectionEntry<typeof HACKING>["data"];
 const { title, description, next, prev } = Astro.props;
 ---
 

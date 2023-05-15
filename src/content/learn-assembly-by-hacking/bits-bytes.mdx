@@ -1,7 +1,9 @@
 ---
-title: Appendix - Primer
-description: An optional primer into hex, bits, bytes and data encoding.
-index: 3
+title: Bits and Bytes
+description: A quick and dirty refresher on some basic computer science concepts related to hex, bytes and memory.
+index: 990
+appendix: true
+next: dev-environment
 ---
 
 ## Topics Covered
@@ -9,17 +11,24 @@ index: 3
 - Hex, decimal and binary representation
 - A refresher on reading different hex strings
 
-## Optional Primer
-
 We're going to be reading a lot of raw bytecode data, so it's important to recall some of the basics around low-level data representations. In particular some of the differences between representations in different base formats, and how that looks in our editor.
 
-## Base notation
+## Opcodes
 
 All data in the EVM is ultimately expressed as machine code, which is typically represented as hexadecimal bytecode, prefixed with `0x`.
+
+We use the term "Opcode" to refer to a single instruction executed on the EVM. You can see a list of these at [EVM Codes](https://www.evm.codes/).
+
+An opcode is a single byte value from `0x00` -> `0xff`, corresponding to an instruction in the EVM.
+
+Opodes are executed like functions. They take arguments and push values onto the stack. There's a lot of great primers on the stack in the EVM which I wont repeat here. What we need to know is that 1 byte -> 1 opcode.
+
+## Base notation
 
 Most of the time we are looking at EVM code, we are looking at hexadecimal, you can do a quick conversion using foundry's `chisel` CLI:
 
 ```sh
+$ chisel
 Welcome to Chisel! Type `!help` to show available commands.
 ➜ 123
 Type: uint

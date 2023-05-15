@@ -1,0 +1,59 @@
+---
+import { getCollection } from "astro:content";
+import Base from "../../layouts/Base.astro";
+import { HACKING } from "../../consts";
+const posts = (await getCollection(HACKING)).sort((a, b) => a.data.index.valueOf() - b.data.index.valueOf());
+---
+
+<Base title="Posts" , description="desc">
+  <section class="flex flex-col gap-3 my-5 max-w-[90vw] sm:max-w-none w-full">
+    <h2 class="text-lg">Learn Assembly By Hacking Smart Contracts</h2>
+    <div>
+      <p>
+        Diving deep into Assembly has been one of the most useful things I have done as a Solidity developer. It taught
+        me how the EVM works and how to think more deeply about why the code we write works the way it does.
+      </p>
+      <br />
+      <p>
+        My aim with this series is to give a hands-on and focused deep dive into using Assembly by doing something fun
+        and not purely theoretical: hacking smart contracts.
+      </p>
+    </div>
+    <ul class="list-none text-left">
+      {
+        posts
+          .filter((post) => !post.data.appendix)
+          .map((post, idx) => (
+            <li class="border-l-[1px] border-black ml-2 pl-5 my-5">
+              <p class="font-bold">
+                {"Part " + String(idx + 1)} -
+                <a class="underline text-red-600 hover:text-red-900" href={`/${HACKING}/${post.slug}/`}>
+                  {post.data.title}
+                </a>
+              </p>
+              <p class="italic">{post.data.description}</p>
+            </li>
+          ))
+      }
+    </ul>
+    <h2 class="text-lg">Appendix</h2>
+    <p>Some additional notes that might be helpful.</p>
+    <ul class="list-none text-left">
+      {
+        posts
+          .filter((post) => post.data.appendix)
+          .map((post, idx) => (
+            <li class="border-l-[1px] border-black ml-2 pl-5 my-5">
+              <p class="font-bold">
+                {"Appendix " + String(idx + 1)} -
+                <a class="underline text-red-600 hover:text-red-900" href={`/${HACKING}/${post.slug}/`}>
+                  {post.data.title}
+                </a>
+              </p>
+              <p class="italic">{post.data.description}</p>
+            </li>
+          ))
+      }
+    </ul>
+  </section>
+</Base>

@@ -3,3 +3,5 @@
 
 export const SITE_TITLE = "Jordan's website";
 export const SITE_DESCRIPTION = "Welcome to my website!";
+
+export const HACKING = "learn-assembly-by-hacking" as const;
