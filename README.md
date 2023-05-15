@@ -5,9 +5,8 @@
 
 ## Getting started
 
-This site uses `pnpm`, commands work similarly to npm, but faster:
+This site uses `pnpm`, commands work similarly to npm, but faster.
 
-```sh
-# serve a local version on port 3000
-pnpm run dev
-```
+To get started, `git clone` the repo, run `pnpm i`, then `pnpm run dev` to serve on port 3000.
+
+Hot reloads are enabled by default, and the current set of posts are pages in `content` folder.
