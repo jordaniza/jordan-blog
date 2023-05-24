@@ -11,5 +11,4 @@ const blog = defineCollection({
     appendix: z.boolean().optional(),
   }),
 });
-
 export const collections = { blog };

@@ -6,13 +6,34 @@ prev: intro
 next: magic-number
 ---
 
+## Structure of this Series
+
+The aim of this series is to walk you through various different assembly concepts using the [Ethernaut](https://ethernaut.openzeppelin.com) wargame as a base. Ethernaut was developed by OpenZeppelin and is a series of challenges that we will solve by seeing what vulnerabilities exist in each contract. The ethernaut github contains the [list of contracts](https://github.com/OpenZeppelin/ethernaut/tree/master/contracts/contracts/levels) we will be using.
+
+Some of these challenges should be fairly straightforward for anyone with some experience with solidity, some of them genuinely do require some thought.
+
+The aim of each article is to introduce a couple of new concepts so as not to become overwhelming. I will try and keep the articles contained but may reference techniques from previous articles for brevity.
+
+We will be using [Foundry](getfoundry.sh) to run all our tests, as opposed to OpenZeppelin's deployed challenge. Reasons for this are as follows:
+
+- Foundry has excellent debugging tools that let us inspect the stack and memory line by line.
+- Testing our contracts is fast and easy to do, and we have a number of utilities built in to help us manipulate the state.
+
+If you're experienced with foundry, awesome, if not - [here's a quick primer](/learn-assembly-by-hacking/dev-environment)
+
+I assume because you are looking at an assembly course, you've got a decent idea about how smart contracts work, how the Ethereum blockchain works, and how to write solidity. We will not cover any solidity syntax here unless we use some advanced features or utilities specific to foundry.
+
+We will be pulling the OZ ethernaut contracts directly from their [repo](https://github.com/OpenZeppelin/ethernaut/tree/master/contracts), but if you want a ready-to-go setup (with solutions), you can pull [my repo with everything setup](https://github.com/jordaniza/assemblynaut).
+
+Everything will be using the `solidity ^0.8.0` pragma. Not all the OZ contracts are written in v8, but with some small amendments to the contracts, we can replicate older behaviours.
+
 ## Some pre-reading
 
-Ultimately what I hope you takeaway from these posts is not the ability to shoehorn yul into every contract, nor show off what you know, instead it's a foundational and hands-on knowledge of how the EVM is processing your solidity code under the hood.
+Ultimately what I hope you takeaway from these posts is not the ability to shoehorn yul/inline assembly into every contract, instead it's a foundational and hands-on knowledge of how the EVM is processing your solidity code under the hood.
 
 Saying all that, a lot of what we will be doing relies on you having at least a basic knowledge of what the EVM is, and the basics of Memory, Storage, Calldata and the EVM Stack Machine. I will try my best to cover things as they come up, but I suggest that you prepare yourself with some learning.
 
-In the appendix section of [this series]('/learn-assembly-by-hacking) you'll see a basic primer on reading from memory and setting up a dev environment, but there's a couple of posts I wanted to share with you as well.
+In the appendix section of [this series](/learn-assembly-by-hacking) you'll see a basic primer on reading from memory and setting up a dev environment, but there's a couple of posts I wanted to share with you as well.
 
 ### EVM Deep Dives
 

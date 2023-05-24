@@ -1,6 +1,6 @@
 ---
 title: Setup and Foundry
-description: Setting Up Our dev environment with the foundry
+description: Setting Up Our dev environment with Foundry
 index: 999
 appendix: true
 prev: bits-bytes
@@ -10,18 +10,11 @@ prev: bits-bytes
 
 - Setting up our project
 
+In this primer we cover the basics of how to setup foundry and pull the contracts we need for each challenge, and go through an example setup.
+
 ## Setting Up the Dev Environment
 
-We will be using [Foundry](getfoundry.sh) to run all our tests, as opposed to OpenZeppelin's deployed challenge. Reasons for this are as follows:
-
-- Foundry has excellent debugging tools that let us inspect the stack and memory line by line.
-- Testing our contracts is fast and easy to do, and we have a number of utilities built in to help us manipulate the state.
-
-I assume because you are looking at an assembly course, you've got a decent idea about how smart contracts work, how the Ethereum blockchain works, and how to write solidity. We will not cover any solidity syntax here unless we use some advanced features or utilities specific to foundry.
-
-We will be pulling the OZ ethernaut contracts directly from their [repo](https://github.com/OpenZeppelin/ethernaut/tree/master/contracts), but if you want a ready-to-go setup (with solutions), you can pull [my repo with everything setup](https://github.com/jordaniza/assemblynaut).
-
-Everything will be using the `solidity ^0.8.0` pragma. Not all the OZ contracts are written in v8, but with some small amendments to the contracts, we can replicate older behaviours.
+Foundry can be installed by following the direction on [their site](https://getfoundry.sh). Once installed, you can use the `foundryup` command to update all the tools we need for this course.
 
 Assuming you have foundry and git installed:
 _(Windows users may want to use WSL)_
@@ -29,7 +22,21 @@ _(Windows users may want to use WSL)_
 ```sh
 # update forge, chisel, cast and anvil
 foundryup
+```
 
+My repo below has the full code and solutions. You can use it as a reference if you wish, or just copy the contracts from OpenZeppelin as we go.
+
+### Building a new repo
+
+```sh
+# create a new directory and initialize forge
+mkdir {PROJECT NAME}
+forge init
+```
+
+### Copying From Me
+
+```sh
 # clone the repo and open the new directory
 git clone https://github.com/jordaniza/assemblynaut.git
 cd assemblynaut
@@ -40,9 +47,13 @@ forge build
 
 You should be good to go!
 
-## Project Structure
+## Example Structure
 
-Before we start, let's lay a foundation for how we are going to structure these tests, we are targeting the `Fallout` contract in Ethernaut, hence our project structure should look like this:
+Before we start, let's lay a foundation for how we are going to structure these tests.
+
+For this example, let's use the [`Fallback`](https://github.com/OpenZeppelin/ethernaut/blob/master/contracts/contracts/levels/Fallback.sol) contract in Ethernaut.
+
+Our basic project structure should look like this:
 
 ```sh
 lib/                          # dependencies
@@ -52,6 +63,8 @@ test/
   |-- Fallback.t.sol          # attack contract
 foundry.toml                  # foundry config
 ```
+
+Our source code (the contract we are attacking) will live in the `src` folder, and our hacks will live in the `test` folder.
 
 ### Fallback.sol:
 
@@ -129,6 +142,10 @@ contract ASMFallback is Test {
     }
 }
 ```
+
+`ASMFallback is Test` says that our contract is inheriting the foundry test suite, giving us access the forge test utilities in our test contract.
+
+## Writing the Test Case
 
 Let's fill this in: first let's define 2 state variables:
 

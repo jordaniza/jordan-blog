@@ -6,7 +6,7 @@ prev: structure
 next: magic-number-2
 ---
 
-The first challenge we are going to take on is less of an exploit and more of a review of a number of super important foundations when dealing with assembly. We're going to cover a decent chunk of ground here but by the end, we should have a good grasp of what actually happens _at the bytecode level_ when we send a call to a contract.
+In this first challenge we will review of a number of super important foundations when dealing with assembly. We're going to cover a decent chunk of ground here but by the end, we should have a good grasp of what actually happens _at the bytecode level_ when we send a call to a contract.
 
 ## Topics Covered
 
@@ -14,6 +14,8 @@ The first challenge we are going to take on is less of an exploit and more of a 
 - Writing our first lines of assembly
 
 ## The challenge:
+
+Our challenge is the [MagicNumber](https://github.com/OpenZeppelin/ethernaut/blob/master/contracts/contracts/levels/MagicNum.sol) contract:
 
 > To solve this level, you only need to provide the Ethernaut with a Solver, a contract that responds to `whatIsTheMeaningOfLife()` with the right number...
 > ...The solver's code needs to be really tiny. Really reaaaaaallly tiny. Like freakin' really really itty-bitty tiny: 10 opcodes at most.
@@ -60,7 +62,9 @@ contract ASMMagicNum is Test {
 }
 ```
 
-Our test is pretty simple. We setup the contract, then grab the solver from the contract and validate that the code length is, in fact, less than or equal to 10 bytes. Finally we call the address stored there with `whatIsTheMeaningOfLife()`. Finally, we check the data is equal to 42.
+Our test is pretty simple:
+
+We setup the contract, then grab the solver from the contract and validate that the code length is, in fact, less than or equal to 10 bytes. Finally we call the address stored there with `whatIsTheMeaningOfLife()` and check the data is equal to 42.
 
 ## Below 10 bytes
 
@@ -83,7 +87,11 @@ contract ASMMagicNum is Test {
 }
 ```
 
-However, this will predictably fail:
+Above we're creating a new `Solver` contract that has a method `whatIsTheMeaningOfLife()` that returns 42. We then set the solver to the address of this contract and call it - boom - we're done. Let's run the test and find out.
+
+```sh
+forge test --match-test testAttackMagicNum
+```
 
 ```sh
 [FAIL. Reason: Assertion failed.] testAttackMagicNum() (gas: 100157)
@@ -93,13 +101,17 @@ Logs:
     Value b: 10
 ```
 
-Getting `solver` to 10 bytes is one thing, but a valid question we might want to ask is: how do we even deploy bytecode to an address?
+Our test (predictably) fails: the code length is 119 bytes, not 10 or less, as the check requires. So how do we get it down to 10?
 
-One option for us is to use one of foundry's inbuilt cheat codes so we can start working on the solution.
-
-(Don't worry - by the end of this article we will do things the "proper" way)
+Actually, come to think about it... how do we even deploy bytecode to an address?
 
 ### Cheating a bit
+
+One option for us is to use one of foundry's inbuilt "cheat codes" so we can start working on the solution.
+
+Cheat codes alter the state of the VM in tests in ways we can't do in the EVM. They are useful for tests and simulations, and can save us some time.
+
+(Don't worry - by the end of this article we will do things the "proper" way)
 
 `vm.etch` is a nifty little cheatcode that allows us to write arbitrary data to an address. This will allow us to write a raw bytecode solution without having to run through contract creation (yet). It takes 2 arguments:
 
@@ -145,53 +157,61 @@ Traces:
 Test result: FAILED. 0 passed; 1 failed; finished in 463.39µs
 ```
 
-Whoa there...`StackUnderflow`, sounds scary. But at least we've made it past the `code.length` check? Let's breakdown what's actually going on here.
+So we're getting a new error and we can see that `0x000...` is actually being called. This shows us we've made it past the code length check, but we're still not quite there.
+
+Let's breakdown what's actually going on here - what does `StackUnderflow` mean?
 
 (You might see `650500c1()` in place of `whatIsTheMeaningOfLife()`, we will touch on all this in another post).
 
-### Runtime
+### What's going on?
 
-When we call `solver`, the EVM does nothing more than **execute the code that exists at that address, with the calldata passed to it**.
+When we call the `solver` address, the EVM does nothing more than **execute the code that exists at that address, with the calldata passed to it**.
 
 In our case, the following steps happen:
 
-- We haven't set a solver, so solver returns the zero address
-- We have stored the bytecode `0xffffff` at the zero address using `vm.etch`
+- We haven't set a solver yet, so `target.solver()` returns the default value of `address(0x0)`
+- We have stored the bytecode `0xffffff` at `solver` (`address(0x0)`) using `vm.etch`
 - `address(0x0)` is called with the signature `"whatIsTheMeaningOfLife()"` and no additional calldata.
 
 Usually, when we call a contract in solidity, the compiled contract will check that the function `whatIsTheMeaningOfLife()` exists, and revert if it does not. This is typically achieved using a jumptable embedded into the contract bytecode (`JUMP`, `JUMPI` and `JUMPDEST` being the relevant opcodes you will see in most contracts).
 
 In our case, we don't have any of that. Instead we have `0xffffff`, which can be written as 3 bytes of the opcode `0xFF`/[SELFDESTRUCT](https://www.evm.codes/#ff?fork=shanghai)
 
-We can check this by stepping into the debugger:
+We can check this by stepping into the foundry debugger. This is a handy tool that will show us the individual steps of the EVM as it executes our contract:
 
 ```sh
 forge test --debug testAttackMagicNum
 ```
 
-This will walk you line by line through the contract execution, keep moving until you get to the following spot.
+The debugger will walk you line by line through the contract execution, keep moving until you get to the spot in the image below.
 
-(This is the state of the EVM as right before we call our `solver` contract. Don't worry if none of this makes sense just yet.)
+This is the state of the EVM as right before we call our `solver` contract. We can see the address (`0x7fa...`) of our calling contract, the stack, memory and where we are in the solidity code:
 
 ![magic-call](/ybh/magic/call.png)
 
-Advancing one more step, and this is what it looks like when we are calling our `solver` contract. Notice that we have an empty stack, nothing in memory, but that we are at the zero address:
+Advancing one more step, and this is what it looks like when we are calling our `solver` contract. Notice that we have an empty stack, nothing in memory, and that we are at the zero address. We have an 'unknown contract' because we are executing pure bytecode.
 
 ![magic-call](/ybh/magic/selfdestruct.png)
 
-If we check the OPCODE info for [SELFDESTRUCT](https://www.evm.codes/#ff?fork=shanghai) we can see that it takes 1 argument - **Stack input**:
+There's only one OPCODE at the top: `0xff` - SELFDESTRUCT.
 
-> address: account to send the current balance to (see BALANCE or SELFBALANCE since Istanbul fork).
+If we check the info for [SELFDESTRUCT](https://www.evm.codes/#ff?fork=shanghai) we can see that it takes 1 argument - **Stack input**:
 
-So the first SELFDESTRUCT call is trying to operate on an empty stack - impossible and hence the `StackUnderflow` error we mentioned above.
+> address: account to send the current balance to
 
-All well and good, but also kinda useless. Let's actually write some useful code.
+So the first SELFDESTRUCT call is expecting an address, specifically, it's expecting this address from the stack.
+
+But we have pushed nothing TO the stack, hence the `StackUnderflow` error we saw above.
+
+So we can see now that any bytecode we write to the `solver` address will be executed, but we need to be careful to make sure it executes as we expect.
 
 ## An actual solution
 
 What we want to do is actually really simple:
 
-When the address stored in `target.solver` is called, return the number 42.
+**When the address stored in `target.solver` is called, return the number 42.**
+
+A good place to start is how we can return a value in bytecode.
 
 Let go back to our friend EVM Codes, this time for the [RETURN OPCODE](https://www.evm.codes/#f3?fork=shanghai)
 
@@ -202,9 +222,9 @@ Straight away we can see that `RETURN` expects 2 arguments from the stack:
 
 ### Offset
 
-Recall how memory is stored in the EVM: it's a giant array that is wiped between contract calls. We can store whatever data we want in there, and we can fetch it by pointing to _the location in memory from where we want to fetch._
+Offset just means "place in memory to start reading from".
 
-"the location in memory from where we want to fetch" is also known as the `offset` above.
+Recall how memory is stored in the EVM: it's a giant array that is wiped between contract calls. We can store whatever data we want in there, and we can fetch it by starting at the offset, then reading the next `size` bytes.
 
 Examples (spaces added for readability):
 
@@ -221,7 +241,7 @@ Examples (spaces added for readability):
 
 ### Size
 
-Size is very simple: starting from the offset, it just represents how many bytes to return, so if your data at offset 0x02 is `DEADC0FFEE00000000000...`, size of `0x02` will return `0xDEAD`, while size of `0x05` will return `0xDEADC0FFEE`.
+Size is very simple: starting from the offset, it just represents how many bytes to return, so if your data, starting at offset 0x02 is `DEADC0FFEE00000000000...`, size of `0x01` will return `0xDE`, while size of `0x05` will return `0xDEADC0FFEE`.
 
 ### Putting it together
 
@@ -242,13 +262,12 @@ Both take 2 arguments, an offset (which we discussed above) that says where in m
 
 For `MSTORE` the value will be left padded and stored as a full 256 bit word, for `MSTORE8` the value is stored as an 8 bit value.
 
-When we return the value, the data will be read as a full word, so we need to return:
+When we return the value, the data will be read as a full 256 bit word. So if we're just returning a single number, it will need to be encoded like so:
 
 ```sh
-0000 0000 0000 0000
-0000 0000 0000 0000
-0000 0000 0000 0000
-0000 0000 0000 002a
+0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 002a
+                                                                             ^^
+                                                                             42
 ```
 
 You might notice that there are 2 ways to do this:
@@ -264,17 +283,31 @@ Doesn't matter enormously which one you prefer for this exercise.
 
 Let's write our bytecode.
 
-`60` is the opcode for [PUSH1](https://www.evm.codes/#60?fork=shanghai). It takes the next opcode and...pushes it to the stack.
+`60` is the opcode for [PUSH1](https://www.evm.codes/#60?fork=shanghai). It takes the next byte and pushes that byte to the top of the stack.
 
-We start with the above: we store `0x2a` as the last byte in a 32 byte word, at the zero offset in memory:
+We start with the above: we store `0x2a` as the last byte in a 32 byte word. `0x1f` = 31 in hex.
 
 ```sh
 60 2a                   // PUSH1 VALUE (0x2a = 42)
 60 1f                   // PUSH1 MEMORY OFFSET (31 bytes)
+```
+
+Our stack should now look like:
+
+```
+0 | 0x1f
+1 | 0x2a
+```
+
+We can now store the value `0x2a` at offset `0x1f` using `MSTORE8`:
+
+```
 53                      // MSTORE8 (offset, value)
 ```
 
-Then, we need to return it with opcode `f3` as above.
+This will empty the stack and move the value into memory.
+
+Lastly, we need to return it with opcode `f3` as above.
 
 ```sh
 60 20                   // PUSH1: RETURN DATA SIZE (32 bytes)
