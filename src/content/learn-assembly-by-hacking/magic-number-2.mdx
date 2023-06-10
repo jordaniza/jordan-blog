@@ -5,7 +5,7 @@ index: 3
 prev: magic-number
 ---
 
-In the last part, we attempted to solve the MagicNumber contract, by writing raw bytecode directly to an address using a foundry cheatcode. In this article, we remove that dependency, and create the contract ourselves.
+In the last part, we attempted to solve the MagicNumber contract, by writing raw bytecode directly to an address using a foundry cheatcode. In this article, we remove the dependency on foundry, and deploy the contract bytecode ourselves.
 
 ## Topics Covered
 
@@ -53,8 +53,11 @@ contract ASMMagicNum is Test {
     }
 }
 ```
+Our test sets up a fresh instance of the contract. It then grabs the hex literal `602a601f5360206000f3` and writes to the address returned by `target.solver()`. We check to see if the bytecode is less than or equal to 10 bytes and if so, we call the method "whatIsTheMeaningOfLife" and check the returned data is equal to 42.
 
-We've been using foundry's `vm.etch` cheatcode to write contract data to an address. We can hardly call ourselves pro-hackers if we need to artificially manipulate the EVM state to win.
+## Cheating a bit
+
+We've been using foundry's `vm.etch` cheatcode to write the contract bytecode to an address. This simplified things up until now, but it's not something that's possible outside of the test environment. We need to remove it.
 
 In order to remove Etch, we will have to _deploy_ our bytecode. This means we need to create a contract, and fetch the deployed address.
 
@@ -64,19 +67,19 @@ In order to remove Etch, we will have to _deploy_ our bytecode. This means we ne
 
 > Creates a new contract. Enters a new sub context of the calculated destination address and executes the provided initialisation code, then resumes the current context.
 
-In simple english, this just means that CREATE runs whatever code you pass to it.
+In simple english, this just means that CREATE runs whatever code you pass to it. The whole part about context is telling us that the code run before we call CREATE is executed separately to the code we run DURING the CREATE process.
 
-The code that we pass to CREATE must also RETURN the bytecode we want to deploy.
+Specifically, the code that we pass to CREATE must also RETURN the bytecode we want to deploy.
 
-As a worflow:
+As a worflow then, we need to:
 
 1. Call CREATE
 2. CREATE runs the passed code ("contract creation bytecode")
-3. The code returns some more code ("runtime bytecode")
-4. The CREATE opcode deployed the returned code at an address.
+3. The contract creation bytecode returns some more code ("runtime bytecode")
+4. The CREATE opcode deploys the returned code at a new address.
 5. The CREATE opcode then sends the address back to the caller.
 
-The creation bytecode is discarded once CREATE is run - this is the bytecode that contains the `constructor` logic in smart contracts. Once run, it's discarded, and only the runtime bytecode is stored onchain.
+The creation bytecode is discarded once CREATE is run - this is the bytecode that contains the `constructor` logic in smart contracts. Once run, only the runtime bytecode is stored onchain.
 
 ### Arguments
 
@@ -114,7 +117,7 @@ See what happens when you replace the bytecode with the bytecode above:
     bytes solverBytecode = hex"69602a601f5360206000f3600052600a6016f3";
 ```
 
-It should fail because now the bytecode is too long. We're not actually calling the create command we're writing the full contract creation bytecode to `address(0)` still. We still need to call `CREATE` somewhere, and for that we need to move to inline assembly...
+It should fail because now the bytecode is too long. We need 10 bytes, but we've added the creation bytecode and are still writing the whole thing to the `solver` address. We still need to call `CREATE` somewhere, and for that we need to move to inline assembly...
 
 ## CREATE in Yul
 
@@ -191,14 +194,13 @@ The code to do this is to use a bitwise AND on just the last byte. AND takes 2 v
 For us, if we just want the last byte, we can call `and(data, 0xff)` to fetch the length of our bytecode:
 
 ```solidity
-  assembly {
-        // we know there are less than 32 bytes so the data in the slot is the bytecode
-        let data := sload(solverBytecode.slot)
-
-        // length of the data is stored at the end of the slot in the last byte
-        // we can fetch with a bitwise AND using a mask over the final byte
-        let len := and(data, 0xff)
-    }
+assembly {
+    // we know there are less than 32 bytes so the data in the slot is the bytecode
+    let data := sload(solverBytecode.slot)
+    // length of the data is stored at the end of the slot in the last byte
+    // we can fetch with a bitwise AND using a mask over the final byte
+    let len := and(data, 0xff)
+}
 ```
 
 ### Final call
@@ -206,28 +208,21 @@ For us, if we just want the last byte, we can call `and(data, 0xff)` to fetch th
 All that's left is to call create and save the address:
 
 ```solidity
-
-  // define the address here so we can access it outside of the assembly block
-  address _solver;
-  assembly {
-        // we know there are less than 32 bytes so the data in the slot is the bytecode
-        let data := sload(solverBytecode.slot)
-
-
-        // length of the data is stored at the end of the slot in the last byte
-        // we can fetch with a bitwise AND using a mask over the final byte
-        let len := and(data, 0xff)
-
-
-        // we can pass the memory start offset and length to the create opcode
-        // which will create a new sub context and return us the address where the init bytecode is deployed
-        _solver := create(0, 0x00, len)
-    }
-
-    // now set the solver to our created address
-    target.setSolver(_solver);
-
-    // ... rest of the test
+// define the address here so we can access it outside of the assembly block
+address _solver;
+assembly {
+      // we know there are less than 32 bytes so the data in the slot is the bytecode
+      let data := sload(solverBytecode.slot)
+      // length of the data is stored at the end of the slot in the last byte
+      // we can fetch with a bitwise AND using a mask over the final byte
+      let len := and(data, 0xff)
+      // we can pass the memory start offset and length to the create opcode
+      // which will create a new sub context and return us the address where the init bytecode is deployed
+      _solver := create(0, 0x00, len)
+  }
+  // now set the solver to our created address
+  target.setSolver(_solver);
+  // ... rest of the test
 ```
 
 Run `forge test` on the contract and check the logs:

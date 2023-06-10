@@ -12,7 +12,7 @@ The aim of this series is to walk you through various different assembly concept
 
 Some of these challenges should be fairly straightforward for anyone with some experience with solidity, some of them genuinely do require some thought.
 
-The aim of each article is to introduce a couple of new concepts so as not to become overwhelming. I will try and keep the articles contained but may reference techniques from previous articles for brevity.
+The aim of each article is to introduce a couple of new concepts at a time - so as not to become overwhelming. I will try and keep the articles self contained but may reference techniques from previous articles for brevity.
 
 We will be using [Foundry](getfoundry.sh) to run all our tests, as opposed to OpenZeppelin's deployed challenge. Reasons for this are as follows:
 
@@ -21,7 +21,7 @@ We will be using [Foundry](getfoundry.sh) to run all our tests, as opposed to Op
 
 If you're experienced with foundry, awesome, if not - [here's a quick primer](/learn-assembly-by-hacking/dev-environment)
 
-I assume because you are looking at an assembly course, you've got a decent idea about how smart contracts work, how the Ethereum blockchain works, and how to write solidity. We will not cover any solidity syntax here unless we use some advanced features or utilities specific to foundry.
+I assume because you are looking at an assembly course, you've got a basic idea about how smart contracts work, how the Ethereum blockchain works, and how to write solidity. We will not cover any solidity syntax here unless we use some advanced features or utilities specific to foundry.
 
 We will be pulling the OZ ethernaut contracts directly from their [repo](https://github.com/OpenZeppelin/ethernaut/tree/master/contracts), but if you want a ready-to-go setup (with solutions), you can pull [my repo with everything setup](https://github.com/jordaniza/assemblynaut).
 
@@ -43,12 +43,12 @@ You may already have seen the absolutely excellent series from [@noxx](https://t
 - [Chapter 2: Memory](https://noxx.substack.com/p/evm-deep-dives-the-path-to-shadowy-d6b)
 - [Chapter 3: Storage and Slot Packing](https://noxx.substack.com/p/evm-deep-dives-the-path-to-shadowy-3ea)
 
-And by read, I mean take your time: sit down - with a pen and paper if you have to - and go through this like you're back in school and studying alegbra.
+And by read, I mean take your time. It might be useful to get a pen and paper out and take formal notes. Going fast is secondary to getting a thorough underderstanding of the basics. 
 
-This stuff is not hard but, if you are new to a lot of low-level computer science concepts, it will be confusing.
+This stuff is not hard but, if you are new to a lot of low-level computer science concepts, it can be confusing.
 
 Let me repeat: take your time. If it takes you a week or two to go through all of the posts properly - good. You will have a proper solid foundation that will make the rest of this much, much easier.
 
-(For the record - this is [exactly what I did](https://github.com/jordaniza/Noxx-EVM-walkthroughs/tree/main/docs))
+If you need some additional pre-prepared notes, [I've prepared some here](https://github.com/jordaniza/Noxx-EVM-walkthroughs/tree/main/docs).
 
 When you're ready, let's get started.

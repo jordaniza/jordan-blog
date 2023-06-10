@@ -13,13 +13,17 @@ next: structure
 
 ## Intro and...what are we doing here?
 
-Hi Anon,
+Why learn assembly? At first glance, it seems a strange idea that we would require really low-level programming when writing smart contracts.
 
-If you're reading this then you're probably spending your free time looking at something that is most people's idea of total boredom. You're someone who is probably interested in _learning for learning's sake_, and I commend you for that.
+Saying that, if you've been reading/writing smart contracts for any length of time you'll very quickly run into `assembly` blocks that seem like black magic. Sometimes you're trying to do specific operations in solidity and realise the ONLY way to do a particular thing is to reach for predefined assembly block. 
 
-I've been a writing code for not too far off a decade now, and being curious about new things has been a constant companion. I believe it's worth taking the time to learn the tools we use in depth, not just to
+If we contrast this to many other languages, jumping to a lower level language is a relatively rare occurence. Jumping to assembly even more so. But when programming smart contracts, having a strong grasp on assembly gives us access to a couple of "super powers":
 
-No, it's not strictly neccessary to know Assembly to write smart contracts. But being able to write assembly _that works_ requires that we have a really solid foundation on how _the EVM works_ - something which is _definitely_ required to write smart contracts.
+1. As mentioned, there are certain operations on the EVM that are *only* possible in assembly.
+2. Operating at the low level can unlock some truly amazing gas savings.
+3. Understanding assembly forces you to very deeply understand the implications of the solidity code you're writing, and will make you better apprecite exactly what is going on in your code in ways that will help you reason about security and efficiency, versus just engaging at the higher level.
+
+I don't think you need to be reaching for assembly often. I'd actually advise AGAINST using assembly except as a last resort. But I think having a curiosity about the tools and languages we are working with is an essential skill and going deep into the weeds really helps us cultivate that skill.
 
 ### Why hacking?
 
