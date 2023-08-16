@@ -11,4 +11,11 @@ const blog = defineCollection({
     appendix: z.boolean().optional(),
   }),
 });
-export const collections = { blog };
+
+const cv = defineCollection({
+  schema: z.object({
+    data: z.string(),
+  }),
+});
+
+export const collections = { blog, cv };

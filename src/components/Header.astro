@@ -3,22 +3,30 @@ import { HACKING } from "../consts";
 import HeaderLink from "./HeaderLink.astro";
 ---
 
-<header class="w-full flex flex-col items-center justify-center my-5">
-  <nav class="w-full flex justify-between gap-2">
+<header class="my-5 flex w-full flex-col items-center justify-center">
+  <nav class="flex w-full justify-between gap-2">
     <div class="flex gap-2">
-      <h2 class="border-r-[1px] border-black pr-2 mx-1">
+      <h2 class="mx-1 border-r-[1px] border-black pr-2">
         <a href="/">Jordaniza</a>
       </h2>
-      <HeaderLink class="underline" href={"/" + HACKING}>All Posts</HeaderLink>
+      <HeaderLink class="underline" href={"/"}>About</HeaderLink>
+      <HeaderLink class="underline" href={"/" + HACKING}>Posts</HeaderLink>
     </div>
     <div class="flex gap-2">
       <HeaderLink href="https://twitter.com/jordanimran2" target="_blank">
-        <img src="/twitter.png" alt="Twitter" class="w-5 h-5" />
+        <img src="/twitter.png" alt="Twitter jordanimran2" class="h-5 w-5" />
       </HeaderLink>
       <HeaderLink href="https://github.com/jordaniza" target="_blank">
-        <img src="/github.png" alt="Github" class="w-5 h-5" />
+        <img src="/github.png" alt="Github jordaniza" class="h-5 w-5" />
+      </HeaderLink>
+      <HeaderLink href="mailto:jordaniza@proton.me" target="_blank">
+        <img src="/email.png" alt="jordaniza@proton.me" class="h-5 w-5" />
+      </HeaderLink>
+      <HeaderLink href="https://discordapp.com/users/867719073885716501" target="_blank">
+        <img src="/discord.png" alt="jordaniza" class="h-5 w-5" />
       </HeaderLink>
     </div>
   </nav>
-  <div class="bg-black h-[1px] w-full"></div>
-</header>
+  <div class="h-[1px] w-full bg-black"></div>
+</header>    
+

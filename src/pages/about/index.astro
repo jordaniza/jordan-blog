@@ -1,0 +1,17 @@
+---
+import BaseLayout from "../../layouts/Base.astro";
+import { getCollection } from "astro:content";
+const body = (await getCollection("about"))[0]!;
+const { Content } = await body.render();
+---
+
+<BaseLayout title='About' description="Jordaniza's latest resume and relevant experience.">
+  <main class="max-w-[90vw] sm:max-w-none">
+    <br />
+    <article
+      class="prose prose-sm max-w-[90ch] prose-a:text-red-600 hover:prose-a:text-red-900" 
+    >
+      <Content />
+    </article>
+  </main>
+</BaseLayout>

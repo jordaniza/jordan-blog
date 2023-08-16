@@ -1,0 +1,133 @@
+import JobHeader from "../../components/cv/JobHeader.astro";
+
+import SkillsList from "../../components/cv/Skills.astro";
+
+# About Me
+
+Hi, I'm Jordan - a Web3 Engineer primarily focused on building DeFi applications in the Ethereum ecosystem. My latest work was at AuxoDAO where I worked as the smart contract development lead for the protocol. Before that I worked as a full stack Web3 engineer primarily in Solidity and Typescript. Before moving to DeFi, I had several years experience as a Web Developer and backend engineer.
+
+I'm really passionate about the potential of Web3 to offer a meaningful alternative to the current financial system. I'm currently exploring research on some of the new frontiers in the Web3 space, in particular using Account Abstraction, Zk Proofs and Alt-L1s to unlock new use-cases in crypto and DeFi. You can find my technical writing on [this website](/learn-assembly-by-hacking).
+
+Outside of tech, I enjoy working out, jamming out on my guitar, visiting new places and finding new ways to use the slow cooker.  
+
+The best way to reach me is via [email](mailto:jordaniza@proton.me) or [discord](https://discordapp.com/users/867719073885716501). I'm always open to new opportunities and discussions and am currently open to new work.
+
+# Latest Experience
+
+<JobHeader title="Smart Contract Engineer" date="2022 - 2023" org="AuxoDAO" />
+<SkillsList
+  skills={[
+    "solidity",
+    "foundry",
+    "typescript",
+    "hardhat",
+    "python",
+    'The Graph'
+  ]}
+/>
+
+- Principal smart contract developer for AuxoDAO (previously PieDAO).
+- Wrote the
+  [Auxo Migration and Governance contracts](https://github.com/AuxoDAO/governance):
+  onchain governance and veToken contracts that distribute rewards to actively
+  staked goverance participants:
+  - Contracts have been audited and deployed on mainnet and have processed over
+    $5m worth of user deposits into the Auxo protocol since April this year.
+- Built and maintained Auxo’s rewards mechanisms:
+  - Off chain voting aggregation fetching data from the
+    [Auxo Staking Subgraphs](https://github.com/jordaniza/auxo-staking-subgraph)
+    and the combining in the
+    [Auxo Reporter](https://github.com/jordaniza/auxo-reporter)
+  - Rewards distribution smart contracts based on Uniswap’s Merkle Distributors
+
+<JobHeader title="Fullstack Web3 Engineer" date="2021 - 2022" org="PieDAO" />
+<SkillsList
+  skills={[
+    "solidity",
+    "typescript",
+    "hardhat",
+    "nextjs",
+    'nodejs',
+  ]}
+/>
+
+- Wrote PieDAO’s DOUGH token buyback contracts processing over $500k of
+  USDC/DOUGH buybacks ahead of Auxo migration.
+- Integrated with Balancer smart pools to enable Pie Holders to enter/exit
+  between Pies and blue-chip assets like wBTC and wETH.
+- Built
+  [Auxo Vaults](https://github.com/pie-dao/auxo-vaults/tree/main/vaults/contracts):
+  tokenized vaults that bridge assets across L2 networks using LayerZero and
+  Stargate Finance - deployed MVP on Arbitrum, Optimism, Polygon and Fantom.
+  - Also built v1 of the Auxo DApp using React and Redux, and created Typescript
+    SDK enabling typesafe multicall and cross-chain contract calls using
+    ethers.js
+
+<JobHeader title="Web3 Freelance Consultant" date="2021" org="JustCarbon" />
+<SkillsList
+  skills={[
+    "solidity",
+    "typescript",
+    "hardhat",
+  ]}
+/>
+
+- Developed and deployed 10 year Vesting Contracts for JustCarbon’s ICO in Jan
+  2022
+- Contracts were [audited](https://solidity.finance/audits/JustCarbon/) with no
+  issues and have successfully been running on the Ethereum mainnet since
+  January, distributing approx 200m tokens to 165 holders.
+- The repository is not open source, but the deployed code is public and can be
+  found
+  [here](https://etherscan.io/address/0x9a6f5ab100819cd911ee73cf7171fd5f8582af0a#code)
+
+<JobHeader title="Web3 Freelance Consultant" date="2021" org="BanklessDAO" />
+<SkillsList skills={[
+    'nextjs',
+    'react',
+    'mongodb',
+    'typescript'
+]} />
+
+- Primarily responsible for React/NextJS development across client and server in
+  the the
+  [Bankless Bounty Board](https://bountyboard.bankless.community/?status=Open&paidStatus=&tags=&lte=Infinity&sortBy=reward&asc=true&customerId=834499078434979890&customerKey=banklessdao),
+  in particular enshrining a proper testing culture within the project.
+- Distibuted over 1m BANK in bounties through the board over the period, a 10x
+  increase since the project’s inception.
+
+<JobHeader title="Fullstack Engineer" date="2018 - 2020" org="Predixa" />
+<SkillsList skills={[
+    'vuejs',
+    'typescript',
+    'python',
+    'docker',
+    'azure',
+    'postgresql',
+]} />
+
+- Developed the MVP of the Predixa B2B SaaS application across the full stack:
+  client and server application, Azure deployment and PowerBI customer
+  dashboards.
+- Developed and integrated, alongside data scientists at Dubai Future
+  Foundation, an initial deep learning model for the Predixa backend,
+  implemented as a CNN in Keras/TensorFlow.
+- Predixa has worked with over 20 companies and the application has scaled to
+  1000s of concurrent employees. It has been selected for several prestigious
+  startup programmes including Microsoft for Startups, Sheikh Mohamad Bin Rashid
+  Innovation Fund and the UAE’s AI Venture Labs.
+
+# Other Work & Research
+
+- Learn Assembly By Hacking Smart Contracts: Online work-in-progress course
+  available on my [blog](https://jordaniza.com/learn-assembly-by-hacking) - teaches using assembly
+  to beat OpenZeppelin Ethernaut CTF
+- HackFS winner 2021: Integrating Superfluid & IPFS NoSQL DB to create automated
+  payment streams (best use of SuperFluid, best use of Textile)
+- [Bitfield-Epoch](https://github.com/jordaniza/bitfield-epoch): solidity
+  library using data compression to save gas costs when using epoch-based
+  staking contracts.
+
+<JobHeader title="Education" date="2013 - 2016" org="University College London (UCL)" />
+
+BSc Economics (2.1) with specialisations in Econometrics & Statistics

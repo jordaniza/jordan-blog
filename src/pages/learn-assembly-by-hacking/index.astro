@@ -2,7 +2,9 @@
 import { getCollection } from "astro:content";
 import Base from "../../layouts/Base.astro";
 import { HACKING } from "../../consts";
-const posts = (await getCollection(HACKING)).sort((a, b) => a.data.index.valueOf() - b.data.index.valueOf());
+const posts = (await getCollection(HACKING)).sort(
+  (a, b) => a.data.index.valueOf() - b.data.index.valueOf(),
+);
 ---
 
 <Base title="Posts" , description="Learn Assembly By Hacking Smart Contracts">
@@ -10,13 +12,14 @@ const posts = (await getCollection(HACKING)).sort((a, b) => a.data.index.valueOf
     <h2 class="text-lg">Learn Assembly By Hacking Smart Contracts</h2>
     <div>
       <p>
-        Diving deep into Assembly has been one of the most useful things I have done as a Solidity developer. It taught
-        me how the EVM works and how to think more deeply about why the code we write works the way it does.
+        Diving deep into Assembly has been one of the most useful things I have done as a Solidity
+        developer. It taught me how the EVM works and how to think more deeply about why the code we
+        write works the way it does.
       </p>
       <br />
       <p>
-        My aim with this series is to give a hands-on and focused deep dive into using Assembly by doing something fun
-        and not purely theoretical: hacking smart contracts.
+        My aim with this series is to give a hands-on and focused deep dive into using Assembly by
+        doing something fun and not purely theoretical: hacking smart contracts.
       </p>
     </div>
     <ul class="list-none text-left">
@@ -27,7 +30,10 @@ const posts = (await getCollection(HACKING)).sort((a, b) => a.data.index.valueOf
             <li class="border-l-[1px] border-black ml-2 pl-5 my-5">
               <p class="font-bold">
                 {"Part " + String(idx + 1)} -
-                <a class="underline text-red-600 hover:text-red-900" href={`/${HACKING}/${post.slug}/`}>
+                <a
+                  class="underline text-red-600 hover:text-red-900"
+                  href={`/${HACKING}/${post.slug}/`}
+                >
                   {post.data.title}
                 </a>
               </p>
@@ -46,7 +52,10 @@ const posts = (await getCollection(HACKING)).sort((a, b) => a.data.index.valueOf
             <li class="border-l-[1px] border-black ml-2 pl-5 my-5">
               <p class="font-bold">
                 {"Appendix " + String(idx + 1)} -
-                <a class="underline text-red-600 hover:text-red-900" href={`/${HACKING}/${post.slug}/`}>
+                <a
+                  class="underline text-red-600 hover:text-red-900"
+                  href={`/${HACKING}/${post.slug}/`}
+                >
                   {post.data.title}
                 </a>
               </p>

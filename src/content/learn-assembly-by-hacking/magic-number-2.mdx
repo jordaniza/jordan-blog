@@ -53,6 +53,7 @@ contract ASMMagicNum is Test {
     }
 }
 ```
+
 Our test sets up a fresh instance of the contract. It then grabs the hex literal `602a601f5360206000f3` and writes to the address returned by `target.solver()`. We check to see if the bytecode is less than or equal to 10 bytes and if so, we call the method "whatIsTheMeaningOfLife" and check the returned data is equal to 42.
 
 ## Cheating a bit
