@@ -1,0 +1,19 @@
+---
+import { EMAIL, GITHUB, WEBSITE, PHONE, TELEGRAM } from "../../consts";
+const links = [EMAIL, GITHUB, WEBSITE, PHONE, TELEGRAM]
+---
+
+<div class="flex items-center flex-col sm:w-full max-w-[90ch] break-words">
+  <h1 class="text-3xl my-5">Jordan Imran</h1>
+  <ul class="flex w-full justify-between items-center">
+    {
+      links.map((link) => (
+        <li class="flex items-center">
+          <img class="h-5 w-5 mr-1.5" src={link.icon} />
+          <p class="text-sm">{link.short}<p>
+        </li>
+      ))
+    }
+  </ul>
+  <div class="bg-gray-400 h-[1px] w-full mt-2 mb-5" />
+</div>

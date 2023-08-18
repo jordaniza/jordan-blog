@@ -5,13 +5,14 @@ const body = (await getCollection("about"))[0]!;
 const { Content } = await body.render();
 ---
 
-<BaseLayout title='About' description="Jordaniza's latest resume and relevant experience.">
+<BaseLayout title='About' description="About Jordan and his professional experience">
   <main class="max-w-[90vw] sm:max-w-none">
     <br />
     <article
-      class="prose prose-sm max-w-[90ch] prose-a:text-red-600 hover:prose-a:text-red-900" 
+      class="prose prose-sm prose-a:text-red-600 hover:prose-a:text-red-900 max-w-[90vw] sm:max-w-none w-full" 
     >
       <Content />
     </article>
   </main>
+  <a href="/about/export" class="cursor-pointer underline italic mt-5 text-red-600 text-sm">View this document in an exportable format</a>
 </BaseLayout>

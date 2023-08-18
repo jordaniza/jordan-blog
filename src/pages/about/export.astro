@@ -1,0 +1,26 @@
+---
+import { getCollection } from "astro:content";
+const body = (await getCollection("about"))[0]!;
+const { Content } = await body.render();
+import BaseHead from "../../components/BaseHead.astro";
+import CVHeader from "../../components/cv/CVHeader.astro";
+---
+
+<!DOCTYPE html>
+<html class="flex flex-col items-center" lang="en">
+  <head>
+    <BaseHead
+      title="Jordaniza | Export CV"
+      description="Save this page to PDF to generate an export"
+    />
+  </head>
+  <body class="flex max-w-[90ch] flex-col items-center break-words sm:w-full sm:px-3">
+    <CVHeader />
+    <main class="prose prose-sm max-w-[90vw] w-full prose-a:text-red-600 hover:prose-a:text-red-900">
+      <Content />
+    </main>
+    <br />
+    <br />
+    <br />
+  </body>
+</html>
