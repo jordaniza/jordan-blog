@@ -1,0 +1,357 @@
+---
+title: An overview of how Upgradeable Smart Contracts work
+---
+
+This page details some learnings about upgradeable contract patterns.
+
+<aside>
+⚠️ Adding storage variables in the wrong place in Upgradeable contracts can be really, really bad, Audius found this out recently, you can read about it here:
+
+[Audius Exploit in Depth](/posts/audius-exploit)
+
+</aside>
+
+# Basics
+
+- While we cannot change an existing smart contract, we can setup a *proxy* pattern:
+    - User calls the Proxy, where the data is permanently stored
+    - Proxy forwards the user request to the implementation contract, where the logic resides
+- Instead the proxy is setup such that any unrecognised calls are forwarded in the fallback function to the implementation contract.
+- The magic is in how call delegation works:
+
+> *Whenever a contract A delegates a call to another contract B, **it executes the code of contract B in the context of contract A.** This means that msg.value and msg.sender values will be kept and every storage modification will impact the storage of contract A.*
+> 
+
+# OZ DelegateCall
+
+OZ Proxies make heavy use of `delegatecall` but not the native solidity version, as it does not return anything other than a boolean. 
+
+Specifically, OZ uses a simple assembly function to copy the return data from delegate call, into memory, and return it. Full details are in the *Proxy Patterns* blog below (not too hard to understand), but in short, the following code is added to the fallback function:
+
+```solidity
+assembly {
+	// initialise pointer at FMP address
+  let ptr := mload(0x40)
+
+  // (1) copy incoming call data
+  calldatacopy(ptr, 0, calldatasize)
+
+  // (2) forward call to logic contract
+  // default delegatecall return is a boolean
+  let result := delegatecall(gas, _impl, ptr, calldatasize, 0, 0)
+  
+  // (3) retrieve return data and size
+  let size := returndatasize  
+  returndatacopy(ptr, 0, size)
+
+  // (4) forward return data back to caller
+  switch result
+  case 0 { revert(ptr, size) }
+  default { return(ptr, size) }
+}
+```
+
+# Unstructured Storage and Collisions
+
+Because we are working across 2 contracts, we might have the following situation:
+
+1. Proxy Stores  in slot 1 the address of implementation contract
+
+```solidity
+|Proxy                     |
+|--------------------------|
+|address _implementation   |
+|...                       |
+|                          |
+|                          |
+```
+
+1. Implementation stores all the storage variables
+
+```solidity
+|Implementation           |
+|-------------------------|
+|address _owner           |
+|mapping _balances        |
+|uint256 _supply          |
+|...                      |
+```
+
+> *When the logic contract writes to `_owner`, it does so in the scope of the proxy’s state, and in reality writes to `_implementation`*
+> 
+
+This is the storage collision problem. Delegating Proxy to implementation will overwrite the implementation address stored at storage slot 1
+
+The OZ solution is to randomise the storage slot of the implementation address (remembering that available memory locations are enormous) that makes the likelihood of a storage collision negligible.
+
+# Managing Data
+
+There are some very important points regarding data in upgradeable contracts:
+
+- Do not `remove` storage variables, `append only`
+- Do not change the order of existing storage variables
+
+# Managing Initializers over Constructors
+
+## Constructors do not work
+
+Recall that constructors do not form part of the deployed contract bytecode, as they are executed only once, during deploy.
+
+Therefore, while we may deploy various versions of an implementation contract, we need to execute code within the storage context of the proxy. Because the proxy will never ‘see’ the deployment, the constructor logic will never be executed in the context of the proxy. Put another way:
+
+- Deploy implementation
+- Execute constructor within implementation context (not proxy context)
+- Non constructor bytecode loaded to EVM ← constructor dissapears
+- Proxy called
+- Implementation executed in Proxy context ← constructor changes not visible nor applied.
+
+## Solution: Initializer
+
+Initializers are regular functions that should be called only once: when the proxy first links to a new implementation.
+
+You can implement like so:
+
+- Set contract as `Initializable`
+- Replace a constructor with `initialize`
+- Profit
+
+```solidity
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+
+contract MyContract is Initializable {
+    function initialize(
+        address arg1,
+        uint256 arg2,
+        bytes memory arg3
+    ) public payable initializer {
+        // "constructor" code...
+    }
+}
+```
+
+# Transparent Proxies and Name Collisions
+
+In order to upgrade contracts you, obviously, need some functionality that actions the upgrade (directs the proxy to a new implementation). These functions have fairly generic names like `upgradeTo(address)` , in which it is not inconceivable that a name collision would occur. 
+
+In OZ:
+
+- If the owner calls the proxy, only the administrative functions are made available, other calls will fail.
+    - If there is a name collision, the admin function will be called
+- If a non-owner calls the proxy, only the implementation calls are available other calls will fail.
+    - If there is a name collision, the implementation function will be called
+
+Note: this also applies to things like `Owner` , the admin will return the Owner of the proxy, the user the owner in the ‘expected’ sense.
+
+## But don’t worry too much…
+
+> *Fortunately, OpenZeppelin Upgrades accounts for this situation, and creates an intermediary ProxyAdmin contract that is in charge of all the proxies you create via the Upgrades plugins. Even if you call the `deploy`
+ command from your node’s default account, the ProxyAdmin contract will be the actual admin of all your proxies. This means that you will be able to interact with the proxies from any of your node’s accounts, without having to worry about the nuances of the transparent proxy pattern.*
+> 
+
+# Implementation Details
+
+- Replace all OZ libraries with their *upgradeable* counterparts
+- Use the `Initalizer` inheritance with `initialize` in place of the constructor and `intializer` as the modifier
+
+```solidity
+// contracts/MyContract.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.6.0;
+
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+
+contract MyContract is Initializable {
+    uint256 public x;
+
+    function initialize(uint256 _x) public initializer {
+        x = _x;
+    }
+}
+```
+
+- When dealing with inheritance, bear in mind that parent contracts have their constructors automatically invoked by solidity, you need to work around that:
+    - Add the `onlyInitializing` modifier to the parent
+    - Ensure you call `initialize()` over `super()`
+
+```solidity
+// contracts/MyContract.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.6.0;
+
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+
+contract BaseContract is Initializable {
+    uint256 public y;
+
+    function initialize() public onlyInitializing {
+        y = 42;
+    }
+}
+
+contract MyContract is BaseContract {
+    uint256 public x;
+
+    function initialize(uint256 _x) public initializer {
+        BaseContract.initialize(); // Do not forget this call!
+        x = _x;
+    }
+}
+```
+
+## Big One: don’t declare non-constants outside the initializer
+
+```solidity
+// This will not work
+contract MyContract {
+    uint256 public hasInitialValue = 42; // equivalent to setting in the constructor
+}
+
+// Do this
+contract MyContract is Initializable {
+    uint256 public hasInitialValue;
+
+    function initialize() public initializer {
+        hasInitialValue = 42; // set initial value in initializer
+    }
+}
+
+// or this is fine too (constants are added to bytecode)
+uint256 public constant hasInitialValue = 42; // define as constant
+```
+
+## Make sure to initialize or prevent
+
+- If you don’t invoke initialize, make sure to disable intialization of the implementation contract when it is deployed:
+
+```solidity
+/// @custom:oz-upgrades-unsafe-allow constructor
+constructor() {
+    _disableInitializers();
+}
+```
+
+## You can rename storage variables
+
+- As mentioned, you cannot remove variables, only append
+- You can *rename* variables with the same type and in the same order, so this is okay:
+
+```solidity
+// v1
+contract MyContract {
+    string private x;
+    string private y;
+}
+
+// v2
+contract MyContract {
+    uint256 private x;
+    string private z; // starts with the value from `y`
+}
+```
+
+## Order of Inheritance matters
+
+```solidity
+contract A {
+    uint256 a;
+}
+
+contract B {
+    uint256 b;
+}
+
+// this order must stay fixed
+contract MyContract is A, B {}
+
+// this will cause issues
+contract MyContract is B, A {}
+```
+
+## Parent contracts cannot add new variables!
+
+Big gotcha!
+
+Once you inherit from a contract, only the youngest child can append new variables.
+
+You can ‘reserve’ slots for likely variables you might need in the future.
+
+# UUPS vs. TransparentUpgradeable
+
+OZ is moving from a TransparentUpgradeable Proxy pattern to **Universal Upgradeable Proxy Standard (UUPS)**, first specified in EIP-1822.
+
+UUPS adheres to the usage of specific storage slots for proxy information, as detailed in EIP-1967:
+
+> *To avoid clashes in storage usage between the proxy and logic contract, the address of the logic contract is typically saved in a specific storage slot (for example `0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc`
+in OpenZeppelin contracts) guaranteed to be never allocated by a compiler. 
+
+This EIP proposes a set of standard slots to store proxy information. This allows clients like block explorers to properly extract and show this information to end users, and logic contracts to optionally act upon it.*
+> 
+
+The main difference is in *where the upgrade is handled.* 
+
+- In TransparentProxies, upgrades are handled by the proxy
+- In UUPS, upgrades are handled by the implementation
+
+When working with a UUPS contract, you can save gas on deploying the Proxy contract, and for each delegated call (save 1 of 2 SLOAD operations per delegatecall vs transparent proxies)
+
+[https://twitter.com/smpalladino/status/1389939160941740035](https://twitter.com/smpalladino/status/1389939160941740035)
+    
+
+ requiring the following code changes:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
+
+import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+
+contract MyToken is Initializable, ERC20Upgradeable, OwnableUpgradeable, UUPSUpgradeable {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize() initializer public {
+        __ERC20_init("MyToken", "MTK");
+        __Ownable_init();
+				
+				// only needed in UUPS
+        __UUPSUpgradeable_init();
+    }
+
+		// only needed in UUPS
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        onlyOwner
+        override
+    {}
+}
+```
+
+# Deployment
+
+Hardhat deployment is pretty extensively documented, less so with foundry, here is a repo that is minimal and working
+
+<aside>
+✅ On the transparent-proxies branch there are examples for transparent upgradeable proxies.
+
+</aside>
+
+[GitHub - jordaniza/OZ_UUPS_Proxy at feature/transparent-proxies](https://github.com/jordaniza/OZ_UUPS_Proxy/tree/feature/transparent-proxies)
+
+# Resources
+
+[Proxy Patterns - OpenZeppelin blog](https://blog.openzeppelin.com/proxy-patterns/)
+
+[Proxy Upgrade Pattern - OpenZeppelin Docs](https://docs.openzeppelin.com/upgrades-plugins/1.x/proxies)
+
+[Writing Upgradeable Contracts - OpenZeppelin Docs](https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable)
+
+[Proxies - OpenZeppelin Docs](https://docs.openzeppelin.com/contracts/4.x/api/proxy#transparent-vs-uups)
+
+[EIP-1967: Standard Proxy Storage Slots](https://eips.ethereum.org/EIPS/eip-1967)
+
+[EIP-1822: Universal Upgradeable Proxy Standard (UUPS)](https://eips.ethereum.org/EIPS/eip-1822)

@@ -1,13 +1,13 @@
 ---
 import { getCollection } from "astro:content";
-import Base from "../../layouts/Base.astro";
-import { HACKING } from "../../consts";
+import Base from "../../../layouts/Base.astro";
+import { HACKING } from "../../../consts";
 const posts = (await getCollection(HACKING)).sort(
   (a, b) => a.data.index.valueOf() - b.data.index.valueOf(),
 );
 ---
 
-<Base title="Posts" , description="Learn Assembly By Hacking Smart Contracts">
+<Base title="Learn Assembly By Hacking" , description="Learn Assembly By Hacking Smart Contracts">
   <section class="flex flex-col gap-3 my-5 max-w-[90vw] sm:max-w-none w-full">
     <h2 class="text-lg">Learn Assembly By Hacking Smart Contracts</h2>
     <div>

@@ -1,0 +1,432 @@
+---
+title: A scalable approach to handling long-running ethereum transactions with Redux
+---
+
+import Frax from "../../images/posts/long-running-redux/frax-pool.png"; 
+
+import ReduxSimple from "../../images/posts/long-running-redux/redux-simple.png";
+
+import ReduxFlow from "../../images/posts/long-running-redux/redux-flow.png";
+
+import TxFlow from "../../images/posts/long-running-redux/tx-flow.png";
+
+_This post was originally written a couple of years ago when I was building out an earlier version of Auxo. There have been some changes to the tools and libraries that are available now for solving some of the problems outlined in this article, but I think most of the concepts are still valid._
+
+
+When we built Auxo, we wanted to integrate a number of the lessons learned from
+building previous DApps and products in PieDAO. In any frontend web app, how you
+manage the data (the state) is critical to keeping your app maintainable and
+performant.
+
+Recently, the tendency has been to move more and more of the application code
+into the front end application, as operations on the blockchain are 💰
+(expensive) and 🐢 (slow), compared to what we can do in the user’s browser with
+a framework like React, Vue, Svelte or Angular.
+
+At some point though, you _have_ to interact with the network. So, in order to
+create a great user-experience for a DApp, we as developers need to have a very
+clear conceptual framework for managing the kind of long-running transactions
+that are typical in Web3. We also need to ensure we are giving plenty of user
+feedback and are able to accurately reflect the state of the app, in relation to
+the network, at a given time.
+
+This post explains our approach in Auxo, in particular some of our early
+discussions on what _doesn’t_ scale as an approach to managing transactions, and
+how we can use the tools in the popular state management library _Redux_ to
+create a clear separation between our components, blockchain transactions, and
+user journeys.
+
+# The Basics
+
+A core feature of any DApp is the ability to submit transactions through the UI
+and have them be resolved on chain.
+
+The basic workflow of a transaction, using ethers JS and react:
+
+1. Submit the transaction using the ethers Contract instance.
+2. Wait for the promise to resolve, indicating the transaction was submitted
+   successfully.
+   1. During this stage, the user will probably be signing the transaction on
+      Metamask, Trezor etc.
+3. Wait for the network to confirm the transaction.
+
+Part 1 is a simple UI interaction. Part 2 puts the application in an extended,
+pending state, but importantly here, the user is engaged elsewhere (they are
+signing the transaction).
+
+Part 3 is more challenging. Network confirmations often take several seconds,
+sometimes minutes, and sometimes lock for even longer. In the meantime, while
+the user can see the transaction is pending in their wallet, our application
+needs to know how to handle this intermediate state, and provide the relevant
+user feedback.
+
+Our approach at Auxo leverages Redux, Redux Toolkit (specifically slices and
+‘Thunks’) and ethers to create a store capable of handling long-running
+asynchronous transactions, while keeping the rest of the store, and the react UI
+elements, synchronous.
+
+# **Naive approach (In-component state updates)**
+
+It’s helpful to remind ourselves one (super) simplified way how we might handle
+submitting a transaction in the base case:
+
+```tsx
+const MAX_VALUE = // some big number (0xfff....fffff)
+const TOKEN_ADDRESS = // erc20 token address
+const SPENDER = // address of our spender (contract or EOA)
+
+function MinimalTxComponent() {
+
+    const [loading, setLoading] = useState(false);
+    const [approved, setApproved] = useState(false);
+
+	const erc20 = useErc20Contract(TOKEN_ADDRESS);
+
+    function approveErc20Max() {
+	    setLoading(true);
+	    if (erc20) erc20.approve(ethers.BigNumber.from(MAX_VALUE), SPENDER);
+			else throw Error('No Erc20 Contract');
+		})
+        .then(() => setApproved(true))
+        .catch(() => alert('Error'))
+        .finally(() => setLoading(false))
+    };
+
+    return (
+        <button
+            onClick={approveErc20Max}
+        >
+            {loading ? 'Loading...' : approved ? 'Approved' : 'Click Me' }
+        </button>
+    )
+}
+```
+
+The above component does nothing more than approves a large amount of tokens
+from the sender to an address. This address could be a smart contract, or
+another EOA.
+
+<aside>
+💡 A quick pointer on the `useErc20Contract` hook. For our purposes, assume that this returns an Ethers JS contract instance that is initialised with:
+
+- A signer for the currently connected account
+- The correct contract ABI
+
+</aside>
+
+This will work, but I could hardly consider it good practice. There are some
+glaring issues, mostly related to extensibility and reusability of this
+component:
+
+- All our state and component logic is intertwined. With this simple example, it
+  is not so bad, but as we continue to extend the component, add more complex
+  error handling and state interactions, components quickly get messy and, I
+  would argue, unmaintainable.
+- Worse, I would argue, is that we are not properly handling long running
+  transactions. To understand this, we need to examine the transaction workflow
+  in javascript for ethers JS
+
+# **The ethers transaction object**
+
+Ethers transactions follow the below workflow:
+
+<img src={TxFlow} alt="Basic Eth Transaction Flow" />
+
+Specifically, we are creating a promise when we submit the transaction to the
+network, awaiting _at least_ a succesful submission before the promise resolves.
+
+**Key point: a submission is NOT a confirmation.**
+
+The default behavior of ethers is to simply submit the transaction to the
+network, resolve the promise and move on. At this stage, the transaction is
+still in a pending state waiting to be picked up by a miner/validator and added
+to the blockchain.
+
+It’s possible to return the transaction at this first stage, giving a
+[TransactionResponse](https://docs.ethers.io/v5/api/providers/types/#providers-TransactionResponse)
+object, with some of the following properties set to `null` :
+
+- BlockNumber
+- BlockHash
+- Timestamp
+
+Crucially, we also have access to a `Transaction.wait` method. This will wait
+for at least 1 network confirmation before resolving the promise, at which point
+the above `BlockNumber`, `BlockHash` and `Timestamp` **will have actual
+values.**
+
+**Ok, how does this relate to our example?**
+
+Awaiting a transaction confirmation can take several minutes in the worst case.
+Along the way, there are all sorts of edge cases and error handling we might
+want to consider.
+
+Beyond the complexities of writing all this into a single component, the bigger
+question is more: how do we update our application in multiple places, with
+potentially multiple transactions?
+
+# **A minimal Redux store**
+
+<aside>
+💡 I’m going to assume you understand the basics of React, Redux and state management from this point onwards.
+
+</aside>
+
+I’ve seen a lot of applications make heavy use of React hooks to manage state.
+This is perfectly fine, but the hooks model is a very opinionated and
+react-centric approach to developing web applications that has some
+[notable teething problems](https://twitter.com/JordanImran2/status/1509793990505287699).
+
+When we talk about complex state management in react apps, why reinvent the
+wheel just because this is Web3?
+
+Redux provides many out-the-box features and benefits that the hooks ecosystem
+does not yet have standardised, and Redux Toolkit has been a pleasure to work
+with, in my experience.
+
+Before explaining HOW we use Redux, we need to understand what is in our store:
+
+Our basic, multiple-vault state is pretty simple:
+
+```tsx
+interface VaultState {
+  vaults: Vault[];
+  selected: null | string;
+}
+```
+
+We have a list of vaults, and a string indicator that allows us to indicate
+which one of the vaults is currently `selected` :
+
+<img src={Frax} alt="frax pool screenshot" />
+
+The selected vault is useful when looking at the single vault page, and we
+actually use the contract address of the deployed vault as the index.
+
+## **What’s in a Vault?**
+
+The basic vault in the state needs to contain, at the very least:
+
+- The vault contract address
+- Interfaces defined for our on-chain data (once we have it):
+
+```tsx
+interface Vault {
+  address: string;
+  token?: VaultToken; // address of the single deposit token
+  auth?: VaultAuth; // whether the user is authorised to use the vault
+  cap?: VaultCap; // per user deposit cap
+  stats?: VaultStats; // total deposits across all users
+  userBalances?: UserBalances; // deposits and other balances for current user
+}
+```
+
+Details aren’t important, what you need to know is ‘Contract address is the
+index, on chain data is added as we go’.
+
+Once we’ve defined a couple of vaults, we can use Redux toolkit `createSlice` to
+create the state:
+
+```tsx
+// vault.slice.ts
+
+import { createSlice } from "@reduxjs/toolkit";
+import { vaultState } from "./vault.state";
+
+const vaultSlice = createSlice({
+  name: "vault",
+  initialState: vaultState, // vaultState is of type VaultState
+});
+```
+
+<aside>
+💡 `createSlice` is a way to instantiate a type-safe Redux store whilst avoiding a lot of boilerplate code.
+
+</aside>
+
+# Dispatching an async action
+
+The basic workflow we want to achieve is a decoupling of the component, the
+synchronous state, and the asynchronous network calls.
+
+_Assuming we are waiting for a transaction to be confirmed_, the flow should
+look like this:
+
+<img src={ReduxFlow} alt="Full Tx Flow" />
+
+Here, the component dispatches the action to send the transaction to the
+network. We now want two things to happen:
+
+1. We want the component (and all other components) to be notified that the
+   state is now ‘pending’ for that transaction.
+2. We want the store to listen for updates in that transaction
+
+# **Updating the state on Success with Redux Toolkit**
+
+In Redux, we want our state reducers to always be synchronous, but we are now in
+a position where our dispatch events trigger _highly_ asynchronous actions.
+You’ve got a few options to solve this problem, such as:
+
+- Redux Saga
+- Redux Thunk
+- RTK Query
+- RTK createAsyncThunk
+
+In Auxo, we used Redux Toolkit and the `createAsyncThunk` helper to achieve
+this.
+
+RTK Query was my first choice - Uniswap even have an
+[RTK Query inspired multicall utility](https://github.com/Uniswap/redux-multicall)
+(but I could not get it to work, unfortunately) - but in genery RTK Query
+seemed, to me at least, more of a tool for RESTful API development. When it
+comes to JSON-RPC requests routed through providers, I could not see an obvious
+way to expose such calls into RTK Query APIs.
+
+Sagas are popular, but they do introduce a lot of new concepts, including the
+relatively esoteric javascript generator functions, which introduces a learning
+curve.
+
+In the end, we settled on `createAsyncThunk`. It seemed to walk a nice line
+between relatively easy to understand, and having the async lifecycle
+functionality we needed, it works like this:
+
+<img src={ReduxSimple} alt="Redux Simple Flow" />
+
+Thunks have a strange name, but are pretty easy to work with, all told. Let’s
+say we want to approve a deposit for an ERC20:
+
+- createAsyncThunk accepts several arguments, the first 3 are:
+  - The name
+  - The arguments passed to the thunk
+  - A utilities object we might need
+
+```tsx
+createAsyncThunk(
+  "vault/approveDeposit",
+  async (
+	// pass the deposit amount, and the token (ethers contract)
+    { deposit, token }: ThunkApproveDepositProps,
+
+	// we can destructure the utilities to fetch the state within our thunk
+    { getState }
+  ) => {
+```
+
+Simple enough. We need to select the correct vault from the list of vaults,
+fortunately, we have a currently `selected` vault saved in our state (see
+above), which makes this fairly trivial
+
+```tsx
+const { vault } = getState();
+const tx = await token.approve(vault.selected, deposit);
+```
+
+Finally, we can wait for at least one network confirmation before resolving the
+asynchronous action:
+
+```tsx
+const receipt = await tx.wait();
+
+return receipt.status === 1 ? { deposit } : rejectWithValue("Approval Failed");
+```
+
+All together:
+
+```tsx
+import { createAsyncThunk } from "@reduxjs/toolkit";
+import { Erc20 } from "../../types/artifacts/abi";
+
+type ThunkApproveDepositProps = {
+  deposit: string;
+  token: Erc20 | undefined;
+};
+
+const thunkApproveDeposit = createAsyncThunk(
+    "vault/approveDeposit",
+    async ({ deposit, token }: ThunkApproveDepositProps, { getState, rejectWithValue }) => {
+        const { vault } = getState();
+        const tx = await token.approve(vault.selected, deposit);
+        const receipt = await tx.wait();
+        return receipt.status === 1 ? { deposit } : rejectWithValue("Approval Failed");
+  },
+);
+```
+
+## Adding Other Notifications
+
+Notice we don’t need `try/catch` logic or anything like that. createAsyncThunk
+exposes events if the promise resolves, rejects or is still pending, and we can
+subscribe to those events to standardise our error handling - pretty neat!
+
+These lifecycle events are accessed in the `extraReducers` section of our slice,
+taking our approve action, it has 3 states:
+
+- Pending
+- Fulfilled
+- Rejected
+
+Assuming our above promise fulfills, we can update the state as follows:
+
+```tsx
+export const vaultSlice = createSlice({
+    name: 'vault',
+    initialState: vaultState,
+	extraReducers: (builder) => {
+    builder.addCase(thunkApproveDeposit.fulfilled, (state, action) => {
+        // update the state here
+    });
+```
+
+You can use exactly the same pattern for `.pending` and `.rejected` :
+
+Let’s say I set up a global notification handler called `alert` . It takes 2
+arguments:
+
+- An alert message
+- An alert type (affecting color or icons)
+
+```tsx
+builder.addCase(thunkApproveDeposit.pending, (state) => {
+  state.alert = {
+    message: "Approval Pending",
+    type: "PENDING",
+  };
+});
+
+builder.addCase(thunkApproveDeposit.rejected, (state, action) => {
+  state.alert = {
+    message: "Approval Failed",
+    type: "ERROR",
+  };
+});
+```
+
+What I really like about this approach is that it entirely decouples the:
+
+- Async logic
+- Error handling
+- Contract interaction
+- In component behaviour
+
+The above example is still somewhat minimal compared to the final state we used.
+You can view the Auxo Github for more details, including how we:
+
+- Separated the notifications into a separate application-wide slice, and
+  created generic notification handlers.
+- Implemented our vault transformations, for each of the different contract
+  methods
+
+# **Conclusion**
+
+The fact that this article is this length, just to allow us to handle on-chain
+transactions in what I would consider to be a scalable and manageable way, shows
+that the DApp ecosystem still has a way to go in developing the abstractions and
+SDKs that will facilitate rapid development and high quality user experiences in
+the way Web2 has done so well.
+
+At the same time, once you have a conceptual understanding of the way long
+running transactions CAN work, it provides a lot of opportunities to think
+through how to address the challenges. If I look at some of my favourite Web3
+Frontends (Balancer jumps to mind), I’m really starting to be impressed by how
+easy these tools are becoming to use, and I hope approaches like this can be
+critiqued, re-worked, and improved on to build better applications.

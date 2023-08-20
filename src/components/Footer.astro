@@ -1,4 +1,17 @@
-<footer class="w-full flex flex-col text-center">
-  <hr class="my-3 w-full border-1 border-black" />
-  <p class="my-3">---</p>
+---
+import { CONTACT_LINKS } from "../consts";
+import HeaderLink from "./HeaderLink.astro";
+---
+
+<footer class="flex w-full flex-col items-center mb-3">
+  <hr class="border-1 my-3 w-full border-black" />
+  <div class="flex gap-2">
+    {
+      CONTACT_LINKS.map((link) => (
+        <HeaderLink href={link.href} target="_blank">
+          <img src={link.icon} alt={link.name} class="h-5 w-5" />
+        </HeaderLink>
+      ))
+    }
+  </div>
 </footer>
