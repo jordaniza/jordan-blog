@@ -1,0 +1,130 @@
+---
+title: How to give away $4m in 24 hours
+---
+
+> Note: quotes, screenshots and discussions in this article deliberately have the identities of the respective authors removed, to respect their anonymity. Much of this information is public and can be easily checked, if you care. Assume any bad ideas are likely mine, and all the good ones come from the rest of the Auxo team.
+
+In September this year, Auxo DAO voted to dissolve, and return treasury funds back to Auxo holders.
+
+This is not a post about why the DAO voted to dissolve, you can find that out in other places.
+
+This is a technical post. Specifically: how do you engineer a solution to return capital back to token holders in a way that is "simple, linear and safe".
+
+## Background
+
+Auxo is a successor to PieDAO, which (before my time) successfully completed an ICO for the DOUGH token. The PieDAO treasury eventually took on a role of actively managing the funds in the multisig, and returning a portion of yields back to DOUGH holders<sup>1</sup>. 
+
+Auxo built on that, removing the index product offering from the DAO and focusing entirely on active treasury management. 
+
+The idea was that the Auxo token represented a % claim on the Auxo treasury (denominated in WETH). The DAO maintained an AUXO/WETH liquidity pool to ensure Auxo holders had the ability to exit to WETH, backed by the treasury. 
+
+On top of this, we created different tokenized 'vaults', in which a user could deposit Auxo and receive yield. These vaults were built to target different types of users in the DAO:
+
+1. Active Reward Vault (ARV): higher yields, but required participation in Auxo governance.
+2. Passive Reward Vault (PRV): lower yields, no participation required.
+
+ARV, PRV and Auxo all represent claims on the treasury, and all needed to be accounted for when dissolving the DAO.
+
+### A Further Complication
+
+Making all of this more difficult was the fact that the DAO had around a 15% exposure to the Alchemix protocol, which recently suffered a fairly major loss of funds from the alETH Curve pool as part of the recent Vyper compiler exploit. Alchemix is currently undergoing a series of discussions on how best to recoup said losses, but for Auxo this presented an additional set of challenges:
+
+- Do we wait for the Alchemix solution to resolve itself? That could take months.
+- If and when funds are returned from Alchemix, how should they be distributed?
+
+## Challenges
+
+Given the above, we had 3 challenges to address:
+
+1. How do we design a distribution mechanism that isn't hideously complex for all DAO members?
+2. How do we ensure everyone, across all the tokens and contracts used in Auxo, receives their fair share of the dissolved treasury?
+3. How do we manage the risks of distributing that much ETH at once, ensuring nothing breaks or gets exploited?
+
+## Mechanism Design
+
+We had a couple of ideas floating around for how to design the distribution. These could have included:
+
+- Enabling users to exit ARV and PRV, then allowing them to burn Auxo for WETH
+- Airdropping WETH to users based on Auxo holdings 
+- Waiting until the Alchemix situation fully resolved, and pausing the distribution until then
+
+Ultimately, what was proposed was a simple claim mechanism for users, that required some work on our part.
+
+1. The Auxo team will compute the *total* amount of AUXO held by every address, across AUXO, ARV, PRV and all related staking contracts<sub>2</sub>.
+2. Each Auxo holder will be entitled to a corresponding percentage share of the total distribution.
+3. We will create a Merkle Tree containing all addresses, and their respective claims on the final distribution.
+4. Users will go to a Merkle Distributor contract (using a dedicated page in on the Auxo website), and will automatically have their claim processed.
+5. Assuming the user has a valid claim, WETH will be transferred straight to their wallet. 
+6. If and when Alchemix funds are returned, users will repeat the process for the remaining funds.
+
+From a user's point of view: this mechanism requires a single action: go to a website, connect a wallet, hit claim.
+
+The heavy lifting here is done via the Merkle Distributor. This is a contract Auxo has already used as part of its rewards distribution mechanism and which has been both audited and extensively tested.
+
+### Angela
+
+> Feel free to skip this part if you are familar with Merkle Distributors.
+
+The Merkle Distributor sounds complex, but that's mostly familiarity with terms. 
+
+In simple terms, the distributor holds tokens for all users, in addition to the root of a Merkle Tree that is generated off chain.
+
+The Merkle Tree contains (amongst other things):
+
+- The address of the claimant
+- The total WETH they are owed
+- The address of the reward token (WETH)
+- The cryptographic proof that can be used by the distributor to check the above data against the Merkle Root
+
+Importantly, only the 32 byte root is stored on chain, none of the tree data. So for several hundred claimants, containing addresses, reward values etc, this represents an enormous cost saving for the DAO and for the users. 
+
+When the user makes a claim, the distributor checks that the claim is valid, by comparing the proof to the merkle root. The distributor also checks that the address of the sender matches the address in the claim. 
+
+The distributor also ensures that the claim is marked as 'isClaimed = true', to prevent double claiming.<sub>3</sub>
+
+The key point here is that all the data for the distributor is generated off chain, and represented in the form of the merkle root. 
+
+We cannot check the data on chain, but if already have the data, we can verify it is correct. This means it is cheap, effective and secure.
+
+## Growing Trees
+
+The next step is to consider how we might generate the Tree. Without diving too deeply into the Auxo protocol we had at least 4 data sources to aggregate:
+
+1. Auxo token holdings
+2. PRV token holdings 
+3. *staked* PRV token holdings<sub>4</sub>
+4. Auxo locked in ARV<sub>5</sub>
+
+It's tempting to think that ERC20 holdings are easily accessible onchain, given that tools like Etherscan make the full lists of holders very clear. In practice, this is actually slightly more complex, as the full list of holders are NOT stored in the contract.
+
+Additionally, staked PRV and Auxo in ARV involve custom contracts. 
+
+### Subgraphs to the rescue
+
+Fortunately, the Auxo team maintains a pretty extensive set of staking subgraphs. This allowed us to pretty easily query all of the above balances, for a given block number. As with the distributor, the subgraphs have been used regularly in the past by the team in our rewards distribution, so we had a reasonable degree of confidence in their validity. 
+
+One new piece of functionality was the actual distribution script. In the past, we've used the open source Auxo reporter to compute distributions. The reporter is a set of python scripts that fetch and manipulate data from subgraphs + directly on chain, then compute a final distribution number by user, based on the DAOs internal rewards mechanisms. 
+
+In the vein of reusing what works when possible, we were thinking of just adapting the reporter. In the end though, the reporter was fairly heavy duty - it contained a lot of redundant logic that didn't apply in this case and adapting it felt like a risky and error prone solution.
+
+Instead, we opted for a very simple python script that simply:
+
+- Ran a query for each of the 4 positions above
+- Aggregated all Auxo, PRV, Staked PRV, Auxo in ARV into a single JSON File
+- Summed the totals
+- Calculated a pro-rata share of the final distribution
+- Used our existing Merkle Tree generators to convert the distribution into a valid cryptographic Merkle Tree
+
+The script itself brutally adhered to a Keep It Simple, Stupid mentality. It was a set of very simple for loops that took several seconds to run on decent hardware. It was completely unoptimized for performance and entirely optimised for readability. No syntactic sugar, just simple logic. Here, we focused entirely on making it so anyone in the team could point out obvious issues (and they did).
+
+
+## Testing, testing, testing
+
+
+# Addendum
+
+1. Specifically, yields were paid to timelocked DOUGH stakers via the veDOUGH mechanism.
+2. Excluding specific addresses such as the treasury, multisig, LPs etc.
+3. This is handled using a bitmap, inspired by the Uniswap Merkle Distributor contract, for additional gas efficiency, which is outside the scope of this article.
+4. Similar to many DeFi protocols, users stake PRV into a locker to accumlate rewards. This is primarily for accounting reasons.
+5. ARV is minted X:1 for Auxo, where X depends on a vesting schedule. When the vesting schedule ends, the full Auxo is redeemed, and that final Auxo, not the ARV what we wanted to include in our final total.
