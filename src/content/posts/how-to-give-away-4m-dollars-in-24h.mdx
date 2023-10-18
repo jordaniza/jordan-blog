@@ -2,7 +2,7 @@
 title: How to give away $4m in 24 hours
 ---
 
-> Note: quotes, screenshots and discussions in this article deliberately have the identities of the respective authors removed, to respect their anonymity. Much of this information is public and can be easily checked, if you care. Assume any bad ideas are likely mine, and all the good ones come from the rest of the Auxo team.
+| Note: quotes, screenshots and discussions in this article deliberately have the identities of the respective authors removed, to respect their anonymity. Much of this information is public and can be easily checked, if you care. Assume any bad ideas are likely mine, and all the good ones come from the rest of the Auxo team.
 
 In September this year, Auxo DAO voted to dissolve, and return treasury funds back to Auxo holders.
 
@@ -63,7 +63,7 @@ The heavy lifting here is done via the Merkle Distributor. This is a contract Au
 
 ### Angela
 
-> Feel free to skip this part if you are familar with Merkle Distributors.
+| Feel free to skip this part if you are familar with Merkle Distributors.
 
 The Merkle Distributor sounds complex, but that's mostly familiarity with terms. 
 
@@ -118,7 +118,57 @@ Instead, we opted for a very simple python script that simply:
 The script itself brutally adhered to a Keep It Simple, Stupid mentality. It was a set of very simple for loops that took several seconds to run on decent hardware. It was completely unoptimized for performance and entirely optimised for readability. No syntactic sugar, just simple logic. Here, we focused entirely on making it so anyone in the team could point out obvious issues (and they did).
 
 
-## Testing, testing, testing
+## Risk Mitigations
+
+At this point, we had an approach, a script and some data. But when distributing over 2,500 ETH in one go, we needed assurances. 
+
+We can break down the risks involved in this kind of transaction into a few buckets:
+
+1. Smart contract vulnerabilities.
+2. Risk of incorrect Merkle Tree data.
+3. Risk of a misconfigured transaction.
+
+### Smart Contract Vulnerabilities
+
+Smart contracts risks continue to be ever-present in DeFi. Our mantra during the distribution was broadly "reuse what works".
+
+Specifically, used an existing, deployed distributor that had already been audited and had already been used for several months in Auxo. 
+
+Said distributor had some existing WETH locked from a previous distribution window, but this is fully supported by the logic of the contract. By reusing the contract, we avoided the potential pitfalls of messing up the deployment or failing to set a critical initialisation parameter.
+
+
+### Risks of Incorrect Merkle Tree data
+
+This risk would be that we had failed to calculate the amount of Auxo someone was owed, due to an issue with the subgraphs or the scripting logic. As mentioned some of the existing mitiggations here:
+
+- Subgraphs have been used before.
+- The new logic in the reporter focused on simplicity and readability over any performance concerns.
+
+In addition to this, we published the Merkle Tree in advance on [snapshot](https://snapshot.org/#/auxo.eth), this gave Auxo holders a 2 week window to review the distributed quantities and check they were happy with the allocated rewards. This vote passed unanimously.
+
+### Risks of a misconfigured transaction
+
+Misconfigured transactions could have happened for any number of reasons:
+
+- Incorrect Distributor address used
+- A Merkle Root could have been generated that either was invalid or omitted certain addresses
+- Some sort of rounding error in rewards could have left later investors unable to claim
+- Our frontend could have been misconfigured somehow, even if the smart contract was valid
+
+In Auxo, we developed a few different approaches to replicating the state of the network in a sandboxed environment. What worked well for us was dubbed 'bestnet'.
+
+Bestnet was inspired by Tenderly. It is a webserver that runs an Anvil instance with a very simple API to create network forks. Anvil is a development Ethereum node developed by the foundry team and offers a number of utilities for manipulating state.
+
+Among other things, this allowed us to create test scripts that could be fired from a local machine, and setup the Merkle Distributor with the correct Merkle Roots. We did not need the private keys of multisig signers - anvil lets us impersonate a Safe multisig directly. This allowed us to develop the frontend with a simulated contract state closely mirroring the real state, and allowed us to test on the forked network using our own acccounts.
+
+As a final step, we ran an end-to-end simulation on a local anvil fork. This was quite literally impersonating every account in the Merkle tree, making a claim and testing to see that the change in balance exactly matched what was expected.
+
+
+# Conclusion
+
+At the time of writing, over $3m has been distributed successfully. While the DAO deciding to dissolve is somewhat of a shame, I can say honestly say I am proud that we were able to leave token holders with something to show for themselves. Distributing large amounts of funds in this manner is not trivial, but I am reminded of the power of crypto in a situation like this: almost all user paid under $1 for 4 and 5 figure WETH transfers. This worked smoothly, regardless of border, time of day, and with minimal to no legal or intermediary fees. 
+
+I want to express my gratitude to the Auxo team for their professionalism to this process, and to the Auxo DAO for their support during this difficult time. 
 
 
 # Addendum
