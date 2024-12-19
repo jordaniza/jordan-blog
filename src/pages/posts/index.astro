@@ -3,6 +3,11 @@ import { getCollection } from "astro:content";
 import Base from "../../layouts/Base.astro";
 import { HACKING } from "../../consts";
 const posts = await getCollection("posts");
+const links: { title: string; href: string; description: string  }[] = [
+  title: "Understanding onchain checkpointing in Aerodrome finance",
+  href: "https://github.com/jordaniza/ve-explainer/blob/main/README.md",
+  description: "Checkpointing is a complex but crucial-to-understand mechanism in many ve-government systems. This article explains how it works at a contract and mathematical level, using the popular metadex Aerodrome as a case study.."
+];
 ---
 
 <Base title="Posts" , description="Jordan's blog and technical writing">
@@ -23,6 +28,18 @@ const posts = await getCollection("posts");
               </a>
             </p>
             <p class="italic">{post.data.description}</p>
+          </li>
+        ))
+      }
+      {
+        links.map((link) => (
+          <li class="my-5 ml-2 border-l-[1px] border-black pl-5">
+            <p class="font-bold">
+              <a class="text-red-600 underline hover:text-red-900" href={link.href} target="_blank">
+                {link.title}
+              </a>
+            </p>
+            <p class="italic">{link.description}</p>
           </li>
         ))
       }
