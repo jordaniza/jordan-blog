@@ -4,9 +4,11 @@ import Base from "../../layouts/Base.astro";
 import { HACKING } from "../../consts";
 const posts = await getCollection("posts");
 const links: { title: string; href: string; description: string  }[] = [
-  title: "Understanding onchain checkpointing in Aerodrome finance",
-  href: "https://github.com/jordaniza/ve-explainer/blob/main/README.md",
-  description: "Checkpointing is a complex but crucial-to-understand mechanism in many ve-government systems. This article explains how it works at a contract and mathematical level, using the popular metadex Aerodrome as a case study.."
+  {
+    title: "Understanding onchain checkpointing in Aerodrome finance",
+    href: "https://github.com/jordaniza/ve-explainer/blob/main/README.md",
+    description: "Checkpointing is a complex but crucial-to-understand mechanism in many ve-government systems. This article explains how it works at a contract and mathematical level, using the popular metadex Aerodrome as a case study.."
+  }
 ];
 ---
 
