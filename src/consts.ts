@@ -57,9 +57,9 @@ export const WEBSITE = {
 
 export const PHONE = {
   name: "Phone",
-  href: "+(971) 58 819 0615",
+  href: "+971 58 525 7731",
   icon: "/phone.png",
-  short: "+(971) 58 819 0615",
+  short: "+971 58 525 7731",
 };
 
 export const CONTACT_LINKS: ContactLink[] = [
